@@ -1,0 +1,819 @@
+diff --git a/VIDEO/CRTC98.vhd b/VIDEO/CRTC98.vhd
+index 849d18e..aa91eba 100644
+--- a/VIDEO/CRTC98.vhd
++++ b/VIDEO/CRTC98.vhd
+@@ -80,7 +80,8 @@ port(
+     PC_LINE_START,PC_LINE_ENABLE,PC_ACTIVE,PC_PAGE_WRAP,PC_RSTN :out std_logic;
+     PC_LINE_ADDRESS :out std_logic_vector(18 downto 3);
+     PC_X :out std_logic_vector(9 downto 0);
+-    ROUT8,GOUT8,BOUT8 :out std_logic_vector(7 downto 0)
++    ROUT8,GOUT8,BOUT8 :out std_logic_vector(7 downto 0);
++    LINES480 :in std_logic := '0'   -- 640x480: visible lines 45-524
+ );
+ end CRTC98;
+ 
+@@ -152,7 +153,8 @@ port(
+ 
+ 	clk		:in std_logic;
+ 	rstn	:in std_logic;
+-    ATRSEL :in std_logic := '0'
++    ATRSEL :in std_logic := '0';
++    FIRSTV :in integer range 0 to VWIDTH-1 := VIV
+ );
+ end component;
+ 
+@@ -186,7 +188,8 @@ port(
+ 	PITCH	:in std_logic_vector(7 downto 0);
+ 	
+ 	clk		:in std_logic;
+-	rstn	:in std_logic
++	rstn	:in std_logic;
++	FIRSTV	:in integer range 0 to VWIDTH-1 := VIV
+ );
+ end component;
+ 
+@@ -220,7 +223,8 @@ port(
+ 	VRTC	:out std_logic;
+ 	
+ 	clk		:in std_logic;
+-	rstn	:in std_logic
++	rstn	:in std_logic;
++	FIRSTV	:in integer range 0 to VWIDTH-1 := VWIDTH-VVIS
+ );
+ end component;
+ 
+@@ -311,6 +315,9 @@ signal gpitch_video : std_logic_vector(7 downto 0);
+ signal dotpline_video : std_logic_vector(4 downto 0);
+ signal graphen_video : std_logic;
+ signal lowbl_video : std_logic;
++signal lines480_video, lines480_pixel_source, lines480_frame : std_logic;
++-- First visible raster line: 125 (640x400) or 45 (640x480), per frame.
++signal FIRSTV : integer range 0 to VWIDTH-1 := VIV;
+ 
+ signal tbaseaddr_pixel_source : std_logic_vector(12 downto 0);
+ signal tpitch_pixel_source : std_logic_vector(7 downto 0);
+@@ -374,6 +381,7 @@ begin
+ 			graphen_video <= GRAPHEN;
+ 			txten_video <= TXTEN;
+ 			lowbl_video <= LOWBL;
++			lines480_video <= LINES480;
+ 		end if;
+ 	end process;
+ 
+@@ -402,6 +410,7 @@ begin
+             dotpline_pixel_source <= dotpline_video;
+             graphen_pixel_source <= graphen_video;
+             lowbl_pixel_source <= lowbl_video;
++            lines480_pixel_source <= lines480_video;
+         end if;
+     end process;
+ 
+@@ -414,8 +423,21 @@ begin
+         pitch=>gpitch_pixel_source,repeat_lines=>dotpline_pixel_source,
+         hunit=>HUCOUNT,dot=>UCOUNT,row=>VCOUNT,
+         line_start=>PC_LINE_START,line_enable=>PC_LINE_ENABLE,active=>PC_ACTIVE,
+-        line_address=>PC_LINE_ADDRESS,pixel_x=>PC_X,mode_pixel=>pc_mode_pixel);
++        line_address=>PC_LINE_ADDRESS,pixel_x=>PC_X,mode_pixel=>pc_mode_pixel,
++        first_visible=>FIRSTV);
+     PC_RSTN<=pixel_rstn;
++    -- The line count changes only at frame start, so a frame never mixes
++    -- the 400- and 480-line windows (the HDMI scaler re-measures once).
++    process(clk3,pixel_rstn) begin
++        if pixel_rstn='0' then
++            lines480_frame<='0';
++        elsif rising_edge(clk3) then
++            if VCOMP='1' then
++                lines480_frame<=lines480_pixel_source;
++            end if;
++        end if;
++    end process;
++    FIRSTV<=VIV2 when lines480_frame='1' else VIV;
+     PC_PAGE_WRAP<=not pc_single_pixel;
+     process(clk3,pixel_rstn) begin
+         if pixel_rstn='0' then
+@@ -491,7 +513,8 @@ begin
+ 		VCOMP	=>VCOMP,
+ 
+ 		clk		=>clk3,
+-		rstn	=>pixel_rstn
++		rstn	=>pixel_rstn,
++		FIRSTV	=>FIRSTV
+ 	);
+ 	
+ 	ETXT	:TEXTSCR generic map(4,20,40) port map(
+@@ -557,7 +580,8 @@ begin
+ 		PITCH	=>gpitch_pixel_source,
+ 		
+ 		clk		=>clk3,
+-		rstn	=>pixel_rstn
++		rstn	=>pixel_rstn,
++		FIRSTV	=>FIRSTV
+ 	);
+ 
+ 	sync:synccont2 generic map(
+@@ -572,8 +596,9 @@ begin
+ 	HSY		=>HSY,
+ 	VFP		=>VFP,
+ 	VSY		=>VSY
+-) port map(UCOUNT,HUCOUNT,VCOUNT,HCOMP,VCOMP,HSYNC,VSYNC,VISIBLE,open,HRTC,VRTC,clk3,pixel_rstn);
+-	-- RGB is already forced black outside VISIBLE (640x400). Capturing 480
++) port map(UCOUNT,HUCOUNT,VCOUNT,HCOMP,VCOMP,HSYNC,VSYNC,VISIBLE,open,HRTC,VRTC,clk3,pixel_rstn,FIRSTV);
++	-- RGB is forced black outside VISIBLE (640x400, or 640x480 when the
++	-- text GDC is programmed for 480 active lines). Capturing 480
+ 	-- lines included an 80-line black border and distorted HDMI aspect/scaling.
+ 	-- Use the same delayed visible window for DE; HS/VS and RGB do not change.
+ 	VIDEOEN<=VISIBLE;
+diff --git a/VIDEO/GRAPHSCR98.vhd b/VIDEO/GRAPHSCR98.vhd
+index 4af2abe..6a68ac5 100644
+--- a/VIDEO/GRAPHSCR98.vhd
++++ b/VIDEO/GRAPHSCR98.vhd
+@@ -34,7 +34,8 @@ port(
+ 	PITCH	:in std_logic_vector(7 downto 0);
+ 	
+ 	clk		:in std_logic;
+-	rstn	:in std_logic
++	rstn	:in std_logic;
++	FIRSTV	:in integer range 0 to VWIDTH-1 := VIV	-- first visible line
+ );
+ end GRAPHSCR98;
+ 
+@@ -150,8 +151,8 @@ begin
+ 			BUFWE<='0';
+ 			case BUFSTATE is
+ 			when BS_IDLE =>
+-				if(HUCOUNT=0 and UCOUNT=0 and VCOUNT>=VIV)then
+-					if(VCOUNT=VIV)then
++				if(HUCOUNT=0 and UCOUNT=0 and VCOUNT>=FIRSTV)then
++					if(VCOUNT=FIRSTV)then
+                         GRAMADRb<=base0_pixel;
+                         C0ADDR<=base0_pixel;
+                         LINEEN<='1';
+@@ -214,7 +215,7 @@ begin
+ 	Vdelay	:delayer generic map(4) port map(VCOMP,DVCOMP,clk,rstn);
+ 	
+ 	process (clk,rstn)
+-	variable VVISCOUNT :integer range 0 to VVIS-1;
++	variable VVISCOUNT :integer range 0 to VWIDTH-1;
+ 	variable VVISCV	:std_logic_vector(8 downto 0);
+ 	variable BNXTDOT	:std_logic_vector(7 downto 0);
+ 	begin
+@@ -231,15 +232,15 @@ begin
+ 				RADR<=(others=>'0');
+ 			end if;
+ 
+-			if(VCOUNT>=VIV)then
+-				VVISCOUNT:=VCOUNT-VIV;
++			if(VCOUNT>=FIRSTV)then
++				VVISCOUNT:=VCOUNT-FIRSTV;
+ 			else
+ 				VVISCOUNT:=0;
+ 			end if;
+ 			VVISCV:=conv_std_logic_vector(VVISCOUNT,9);
+ 
+ 			if(UCOUNT=4)then
+-				if(VCOUNT>=VIV and HUCOUNT>=HIV)then
++				if(VCOUNT>=FIRSTV and HUCOUNT>=HIV)then
+ 					NXTDOT0<=RDAT0;
+ 					NXTDOT1<=RDAT1;
+ 					NXTDOT2<=RDAT2;
+diff --git a/VIDEO/knjscr.vhd b/VIDEO/knjscr.vhd
+index 2cc0cce..56623a8 100644
+--- a/VIDEO/knjscr.vhd
++++ b/VIDEO/knjscr.vhd
+@@ -40,7 +40,8 @@ port(
+ 
+ 	clk		:in std_logic;
+ 	rstn	:in std_logic;
+-    ATRSEL :in std_logic := '0'
++    ATRSEL :in std_logic := '0';
++    FIRSTV :in integer range 0 to VWIDTH-1 := VIV  -- first visible line
+ );
+ end KNJSCR;
+ 
+@@ -193,7 +194,7 @@ begin
+ 	-- counters advance sequentially, and character height is fixed per frame.
+ 	row_index : entity work.text_row_counter
+ 		generic map(FIRST_VISIBLE_LINE=>VIV, TOTAL_LINES=>VWIDTH)
+-		port map(VCOUNT,HCOMP,CHRLINES,C_LIN,clk,rstn);
++		port map(VCOUNT,HCOMP,CHRLINES,C_LIN,clk,rstn,FIRSTV);
+ 	C_COL<=0 when HUCOUNT<HIV else HUCOUNT-HIV;
+ 
+ 	CBLINKINT<=conv_integer(cursor_rate_pixel);
+@@ -260,7 +261,7 @@ begin
+ 
+ -- Data	section
+ 			if(DHCOMP='1')then
+-				if(VCOUNT>VIV)then
++				if(VCOUNT>FIRSTV)then
+ 					if(C_LIN/=0)then
+ 						TRAMADRb<=C0ADDR;
+ 					else
+@@ -277,7 +278,7 @@ begin
+ 			end if;
+ 			
+ 			if(UCOUNT=6)then
+-				if(VCOUNT>=VIV and HUCOUNT>=HIV)then
++				if(VCOUNT>=FIRSTV and HUCOUNT>=HIV)then
+ 					if((TRAMATR(bit_BL)='1' and BLKF='1') or TRAMATR(bit_ST)='0')then
+ 						BNXTDOT:=(others=>'0');
+ 					else
+diff --git a/VIDEO/pegc_raster.vhd b/VIDEO/pegc_raster.vhd
+index b43bea3..4c85f17 100644
+--- a/VIDEO/pegc_raster.vhd
++++ b/VIDEO/pegc_raster.vhd
+@@ -24,7 +24,8 @@ entity pegc_raster is
+          line_start,line_enable,active:out std_logic;
+          line_address:out std_logic_vector(18 downto 3);
+          pixel_x:out std_logic_vector(9 downto 0);
+-         mode_pixel:out std_logic);
++         mode_pixel:out std_logic;
++         first_visible:in integer range 0 to VWIDTH-1 := VIV);
+ end;
+ architecture rtl of pegc_raster is
+     signal mode_p,single_p,page_p,fast_p,enable_p:std_logic;
+@@ -60,8 +61,8 @@ begin
+             end if;
+         end if;
+     end process;
+-    row_start<='1' when hunit=0 and dot=0 and row>=VIV else '0';
+-    process(address_now,left_now,repeat_now,partition_now,row,base0_p,base1_p,length0_p,length1_p,pitch_p,repeat_p,fast_p)
++    row_start<='1' when hunit=0 and dot=0 and row>=first_visible else '0';
++    process(address_now,left_now,repeat_now,partition_now,row,first_visible,base0_p,base1_p,length0_p,length1_p,pitch_p,repeat_p,fast_p)
+         variable step:unsigned(15 downto 0);
+     begin
+         address_next<=address_now;left_next<=left_now;repeat_next<=repeat_now;partition_next<=partition_now;
+@@ -69,7 +70,7 @@ begin
+         if fast_p='0' then step:=shift_left(step,1);end if;
+         -- GDC pitch has word granularity even in packed mode.
+         step(0):='0';
+-        if row=VIV then
++        if row=first_visible then
+             address_next<=base0_p & '0';left_next<=rows(length0_p)-1;
+             repeat_next<=repeat_p;partition_next<='0';
+         elsif repeat_now/=0 then repeat_next<=repeat_now-1;
+@@ -86,6 +87,6 @@ begin
+     line_enable<=mode_p and enable_p;
+     mode_pixel<=mode_p;
+     line_address<=std_logic_vector(address_next) when single_p='1' else page_p & std_logic_vector(address_next(14 downto 0));
+-    active<='1' when row>=VIV and hunit>=HIV else '0';
++    active<='1' when row>=first_visible and hunit>=HIV else '0';
+     pixel_x<=std_logic_vector(to_unsigned((hunit-HIV)*DOTPU+dot,10)) when hunit>=HIV else (others=>'0');
+ end;
+diff --git a/VIDEO/synccont2.vhd b/VIDEO/synccont2.vhd
+index 49fbbcd..d2a50f0 100644
+--- a/VIDEO/synccont2.vhd
++++ b/VIDEO/synccont2.vhd
+@@ -32,7 +32,8 @@ port(
+ 	VRTC	:out std_logic;
+ 	
+ 	clk		:in std_logic;
+-	rstn	:in std_logic
++	rstn	:in std_logic;
++	FIRSTV	:in integer range 0 to VWIDTH-1 := VWIDTH-VVIS	-- first visible line
+ );
+ end synccont2;
+ 
+@@ -61,13 +62,13 @@ begin
+ 	VSYNCN<=	'0' when (VCOUNT<VFP) else
+ 				'1' when (VCOUNT<(VFP+VSY)) else
+ 				'0';
+-	VISIBLEN<=	'0' when VCOUNT<VIV else
++	VISIBLEN<=	'0' when VCOUNT<FIRSTV else
+ 					'0' when HUCOUNT<HIV else
+ 					'1';
+ 	VIDENEN<=	'0' when VCOUNT<VIV2 else
+ 					'0' when HUCOUNT<HIV else
+ 					'1';
+-	VRTC		<=	'1' when VCOUNT<VIV else '0';
++	VRTC		<=	'1' when VCOUNT<FIRSTV else '0';
+ 	HRTC		<=	'1' when HUCOUNT<HIV else '0';
+ 	
+ 	process	(clk,rstn)begin
+diff --git a/VIDEO/text_row_counter.vhd b/VIDEO/text_row_counter.vhd
+index 6c45c02..4a27ee3 100644
+--- a/VIDEO/text_row_counter.vhd
++++ b/VIDEO/text_row_counter.vhd
+@@ -15,7 +15,8 @@ port (
+     char_lines : in natural range 1 to 32;
+     row_index : out natural range 0 to 31;
+     clk : in std_logic;
+-    rstn : in std_logic
++    rstn : in std_logic;
++    first_visible : in natural range 0 to TOTAL_LINES-1 := FIRST_VISIBLE_LINE
+ );
+ end text_row_counter;
+ 
+@@ -26,7 +27,7 @@ begin
+         if rstn = '0' then
+             row <= 0;
+         elsif rising_edge(clk) then
+-            if vcount <= FIRST_VISIBLE_LINE then
++            if vcount <= first_visible then
+                 row <= 0;
+             elsif hcomp = '1' then
+                 if row = char_lines-1 then
+diff --git a/Zet98/GDC/txtgdc.vhd b/Zet98/GDC/txtgdc.vhd
+index 27af85b..3f77c42 100644
+--- a/Zet98/GDC/txtgdc.vhd
++++ b/Zet98/GDC/txtgdc.vhd
+@@ -45,6 +45,8 @@ port(
+ 	SL3			:out std_logic_vector(9 downto 0);
+ 	PITCH		:out std_logic_vector(7 downto 0);
+ 	EAD			:out std_logic_vector(12 downto 0);
++	-- SYNC active display lines above 400 (PC-9821 640x480 timing)
++	LINES480	:out std_logic;
+ 
+ 	clk		:in std_logic;
+ 	rstn	:in std_logic
+@@ -105,6 +107,8 @@ signal	DATRD		:std_logic;
+ signal	RDEXIST	:std_logic;
+ signal	NUMRDAT	:integer range 0 to 15;
+ signal	INTER	:std_logic;
++signal	ACTLINES	:std_logic_vector(9 downto 0);
++signal	r_LINES480	:std_logic;
+ 
+ 
+ begin
+@@ -185,6 +189,7 @@ begin
+ 			SL3<=(others=>'0');
+ 			PITCH<=(others=>'0');
+ 			r_EAD<=(others=>'0');
++			ACTLINES<=(others=>'0');
+ 			RNUMCLR<='0';
+ 			NUMRDAT<=0;
+ 		elsif(clk' event and clk='1')then
+@@ -234,10 +239,14 @@ begin
+ 					end case;
+ 				else
+ 					case COMMAND is
+-					when x"0e" | x"0f" =>
++					when x"00" | x"0e" | x"0f" =>	-- RESET/SYNC parameters
+ 						case PARNUM is
+ 						when 0 =>
+ 							INTER<=FIFORDAT(3);
++						when 6 =>
++							ACTLINES(7 downto 0)<=FIFORDAT(7 downto 0);
++						when 7 =>
++							ACTLINES(9 downto 8)<=FIFORDAT(1 downto 0);
+ 						when others =>
+ 						end case;
+ 					when x"4b" =>
+@@ -425,4 +434,20 @@ begin
+ 	
+ 	RDEXIST<='1' when NUMRDAT>RDNUM else '0';
+ 
++	-- 480-line mode: active lines (SYNC P7/P8) above 400. AL=0 after a
++	-- reset means the default 400-line timing. One registered bit feeds
++	-- the video-clock synchronizer (pc98-lines480.sdc).
++	process(clk,rstn)begin
++		if(rstn='0')then
++			r_LINES480<='0';
++		elsif(clk' event and clk='1')then
++			if(ACTLINES>"0110010000")then
++				r_LINES480<='1';
++			else
++				r_LINES480<='0';
++			end if;
++		end if;
++	end process;
++	LINES480<=r_LINES480;
++
+ end rtl;
+diff --git a/Zet98/Zet98MiSTer.vhd b/Zet98/Zet98MiSTer.vhd
+index 35e6fde..632badd 100644
+--- a/Zet98/Zet98MiSTer.vhd
++++ b/Zet98/Zet98MiSTer.vhd
+@@ -319,7 +319,8 @@ port(
+     PC_LINE_START,PC_LINE_ENABLE,PC_ACTIVE,PC_PAGE_WRAP,PC_RSTN :out std_logic;
+     PC_LINE_ADDRESS :out std_logic_vector(18 downto 3);
+     PC_X :out std_logic_vector(9 downto 0);
+-    ROUT8,GOUT8,BOUT8 :out std_logic_vector(7 downto 0)
++    ROUT8,GOUT8,BOUT8 :out std_logic_vector(7 downto 0);
++    LINES480 :in std_logic := '0'
+ );
+ end component;
+ 
+@@ -1018,6 +1019,7 @@ port(
+ 	SL3			:out std_logic_vector(9 downto 0);
+ 	PITCH		:out std_logic_vector(7 downto 0);
+ 	EAD			:out std_logic_vector(12 downto 0);
++	LINES480	:out std_logic;
+ 	
+ 	clk		:in std_logic;
+ 	rstn	:in std_logic
+@@ -2279,6 +2281,11 @@ signal	TSTMP_WAITn	:std_logic;
+ --Machine status
+ signal	IN00f0_ODAT	:std_logic_vector(7 downto 0);
+ signal	IN00f0_DOE	:std_logic;
++signal	tGDC_LINES480	:std_logic;
++signal	lines480_video	:std_logic;
++signal	IO09A8_ODAT	:std_logic_vector(7 downto 0);
++signal	IO09A8_DOE	:std_logic;
++signal	r_09A8	:std_logic;
+ 
+ --Disk emulator
+ signal	EMUENSW	:std_logic;
+@@ -2572,6 +2579,7 @@ begin
+ 		'1' & gGDCod					when gGDCoe='1' else
+ 		'1' & GPAL_ODAT				when GPAL_DOE='1' else
+ 		'1' & IN00f0_ODAT				when IN00f0_DOE='1' else
++		'1' & IO09A8_ODAT				when IO09A8_DOE='1' else
+ 		'1' & FDC_ODAT				when FDC_DOE='1' else
+ 		'1' & FDCNT_ODAT				when FDCNT_DOE='1' else
+ 		'1' & FDCIFS_ODAT				when FDCIFS_DOE='1' else
+@@ -2896,6 +2904,20 @@ begin
+ 	
+ 	IN00f0_ODAT<="11101011";
+ 	IN00f0_DOE<='1' when ioaddr_even=x"00f0" and iord='1' else '0';
++
++	-- 09A8h: PC-9821 31 kHz select. The core always scans at 31 kHz; keep a
++	-- readable latch so BIOSes can detect and query the 480-line support.
++	process(cpuclk,srstn)begin
++		if(srstn='0')then
++			r_09A8<='0';
++		elsif(cpuclk' event and cpuclk='1')then
++			if(ioaddr_even=x"09a8" and iowr='1')then
++				r_09A8<=io_wdata(0);
++			end if;
++		end if;
++	end process;
++	IO09A8_ODAT<="0000000" & r_09A8;
++	IO09A8_DOE<='1' when ioaddr_even=x"09a8" and iord='1' else '0';
+ 	
+ 	IO043F_CS<='1' when ioaddr_odd=x"043f" else '0';
+ 	
+@@ -3156,8 +3178,14 @@ begin
+ 
+ 		gclk		=>grpclk,
+ 		clk			=>vidclk,
+-		rstn		=>video_logic_rstn
++		rstn		=>video_logic_rstn,
++		LINES480	=>lines480_video
+ 	);
++	-- 640x480 (PC-9821 31 kHz 480-line timing): the text GDC reports SYNC
++	-- active lines above 400; resolved in the video clock (pc98-lines480.sdc).
++	lines480_sync_inst : entity work.video_lines480_sync port map(
++		video_clk=>vidclk, video_rstn=>video_logic_rstn,
++		cpu_lines480=>tGDC_LINES480, lines480=>lines480_video);
+ 	
+ 	-- Keep retrace decoding out of the CPU read mux and PIC priority path.
+ 	retrace_status : entity work.video_retrace_cdc port map (
+@@ -3318,6 +3346,7 @@ begin
+ 		SL3			=>open,
+ 		PITCH		=>tGDC_PITCH,
+ 		EAD			=>tGDC_CURADDR,
++		LINES480	=>tGDC_LINES480,
+ 
+ 		clk		=>cpuclk,
+ 		rstn	=>srstn
+diff --git a/Zet98/v17/Zet98MiSTer.sdc b/Zet98/v17/Zet98MiSTer.sdc
+index a836105..af9a49a 100644
+--- a/Zet98/v17/Zet98MiSTer.sdc
++++ b/Zet98/v17/Zet98MiSTer.sdc
+@@ -5,6 +5,7 @@ set pegc_enabled 0
+ source [file join [file dirname [info script]] pc98-pixel.sdc]
+ source [file join [file dirname [info script]] pc98-graphics-transfer.sdc]
+ source [file join [file dirname [info script]] pc98-display-page.sdc]
++source [file join [file dirname [info script]] pc98-lines480.sdc]
+ source [file join [file dirname [info script]] pc98-palette-transfer.sdc]
+ source [file join [file dirname [info script]] pc98-video-settings.sdc]
+ if {$pegc_enabled} {source [file join [file dirname [info script]] pc98-pegc-transfer.sdc]}
+diff --git a/Zet98/v17/pc98-lines480.sdc b/Zet98/v17/pc98-lines480.sdc
+new file mode 100644
+index 0000000..236dc73
+--- /dev/null
++++ b/Zet98/v17/pc98-lines480.sdc
+@@ -0,0 +1,9 @@
++# One CPU-written 480-line mode bit enters a two-stage video-clock chain.
++# The second stage and CRTC98's staging registers are normally timed.
++set lines_source [get_registers {*|textgdc|r_LINES480}]
++set lines_meta [get_registers {*|lines480_sync_inst|lines480_sync[0]}]
++if {[get_collection_size $lines_source] != 1 ||
++    [get_collection_size $lines_meta] != 1} {
++    error "Expected the 480-line source and its first video-clock stage"
++}
++set_false_path -from $lines_source -to $lines_meta
+diff --git a/Zet98/v17/release-Zet98MiSTer.qsf b/Zet98/v17/release-Zet98MiSTer.qsf
+index 4c514c7..3f7dddb 100644
+--- a/Zet98/v17/release-Zet98MiSTer.qsf
++++ b/Zet98/v17/release-Zet98MiSTer.qsf
+@@ -550,6 +550,7 @@ set_global_assignment -name SIGNALTAP_FILE gcrtc.stp
+ set_global_assignment -name VHDL_FILE ../../rtl/reset_release.vhd
+ set_global_assignment -name VHDL_FILE ../../rtl/video_settings_transfer.vhd
+ set_global_assignment -name VHDL_FILE ../../rtl/display_page_address.vhd
++set_global_assignment -name VHDL_FILE ../../rtl/video_lines480_sync.vhd
+ set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/storage/pc98_ide.sv
+ set_global_assignment -name SYSTEMVERILOG_FILE ../../rtl/storage/pc98_ide_bootrom.sv
+ 
+diff --git a/rtl/LINES480.md b/rtl/LINES480.md
+new file mode 100644
+index 0000000..cd29293
+--- /dev/null
++++ b/rtl/LINES480.md
+@@ -0,0 +1,35 @@
++# 640x480 (PC-9821 31 kHz 480-line) display
++
++The raster stays 800x525 at a 25 MHz pixel clock (~31.5 kHz, 59.5 Hz). In
++480-line mode the first visible line moves from 125 to 45, so all 480 lines of
++a VGA-like frame are shown; otherwise the 400-line window is unchanged.
++
++**Selection:** the text GDC latches its SYNC active-lines parameter (P7/P8,
++AL). AL above 400 sets `LINES480` (`Zet98/GDC/txtgdc.vhd`). This is what the
++PC-9821 BIOS (INT 18h AH=30h, BH bits 5-4 = 11b) and software that programs
++the GDC directly send: AL = 480 (or 475 for 25 rows). Power-on and 400-line
++SYNC tables keep the 640x400 window.
++
++**Path:** `r_LINES480` (CPU clock) -> `video_lines480_sync` (two video-clock
++stages, `Zet98/v17/pc98-lines480.sdc`) -> CRTC98 parent-clock staging -> a
++pixel-clock latch at frame start (VCOMP), so no frame mixes heights. The
++resulting first visible line (`FIRSTV`) drives synccont2 (DE/VISIBLE and VRTC),
++the text layer (knjscr, text_row_counter), GRAPHSCR98 and pegc_raster.
++
++**What shows 480 lines:** text (e.g. 30 rows of 16 lines) and PEGC 256-colour
++packed graphics (use single-page mode, 6Ah = 69h, since 640x480 bytes exceed
++one 256 KB page). The 4-plane 16-colour VRAM is 32 KB per plane and wraps at
++line 409, as on PC-9821 hardware, where 480-line graphics are 256-colour only.
++
++**Port 09A8h:** a readable latch (bit 0, 31 kHz select). The core always scans
++at 31 kHz; BIOSes use the decoded port (reads 00h/01h instead of FFh) to detect
++this support.
++
++**VRTC** is high for the 45 lines before the first visible one (1.44 ms), the
++IRQ2 edge stays at the end of the visible area. The HDMI scaler measures DE,
++so fit/integer scaling adapt automatically (1440x1080 fit, 1280x960 2x).
++
++Tests: `tests/run-crtc-lines480.sh` (visible lines, text on every row, VRTC
++width, switching only at frame boundaries) and `tests/run-txtgdc-lines480.sh`
++(SYNC AL decode). Existing CRTC, graphics-address, PEGC, text and timing
++benches pass unchanged.
+diff --git a/rtl/video_lines480_sync.vhd b/rtl/video_lines480_sync.vhd
+new file mode 100644
+index 0000000..b848284
+--- /dev/null
++++ b/rtl/video_lines480_sync.vhd
+@@ -0,0 +1,26 @@
++-- SPDX-License-Identifier: GPL-3.0-or-later
++library ieee;
++use ieee.std_logic_1164.all;
++
++-- The text GDC's 480-line bit (SYNC active lines above 400) changes only
++-- when software reprograms the display. Resolve that single CPU-clock bit in
++-- the video clock before CRTC98 stages it and latches it at frame start.
++entity video_lines480_sync is
++    port(video_clk, video_rstn, cpu_lines480 : in std_logic;
++         lines480 : out std_logic);
++end;
++architecture rtl of video_lines480_sync is
++    signal lines480_sync : std_logic_vector(1 downto 0);
++    attribute preserve : boolean;
++    attribute preserve of lines480_sync : signal is true;
++    attribute altera_attribute : string;
++    attribute altera_attribute of lines480_sync : signal is
++        "-name SYNCHRONIZER_IDENTIFICATION FORCED_IF_ASYNCHRONOUS";
++begin
++    process(video_clk, video_rstn) begin
++        if video_rstn='0' then lines480_sync<="00";
++        elsif rising_edge(video_clk) then lines480_sync<=lines480_sync(0) & cpu_lines480;
++        end if;
++    end process;
++    lines480 <= lines480_sync(1);
++end;
+diff --git a/tests/crtc_lines480_tb.vhd b/tests/crtc_lines480_tb.vhd
+new file mode 100644
+index 0000000..75c1f49
+--- /dev/null
++++ b/tests/crtc_lines480_tb.vhd
+@@ -0,0 +1,112 @@
++library ieee;
++use ieee.std_logic_1164.all;
++entity graphbuf816 is
++    port(clock : in std_logic; data : in std_logic_vector(15 downto 0);
++         rdaddress : in std_logic_vector(6 downto 0);
++         wraddress : in std_logic_vector(5 downto 0); wren : in std_logic;
++         q : out std_logic_vector(7 downto 0));
++end entity;
++architecture test of graphbuf816 is
++begin q <= (others=>'0'); end architecture;
++
++-- 640x480 mode: with LINES480 the CRTC shows 480 visible lines (45-524) of
++-- the unchanged 800x525 raster, text rows continue to line 479, VRTC spans
++-- lines 0-44, and a switch never produces a frame of mixed height.
++library ieee;
++use ieee.std_logic_1164.all;
++use ieee.numeric_std.all;
++entity crtc_lines480_tb is end;
++architecture test of crtc_lines480_tb is
++    signal clk, raw_rstn, rstn, pixel_clk, de, vsync, vrtc : std_logic := '0';
++    signal done : boolean := false;
++    signal r,g,b : std_logic_vector(3 downto 0);
++    signal lines480 : std_logic := '0';
++begin
++    process begin
++        wait for 6667 ps;
++        if done then wait; end if;
++        clk<=not clk;
++    end process;
++    parent_reset : entity work.reset_release port map(clk,raw_rstn,rstn);
++    dut : entity work.CRTC98 port map(
++        TRAM_ADR=>open,TRAM_DAT=>x"0041",TRAM_ATR=>x"e1",
++        KNJSEL=>open,KNJADR=>open,KNJDAT=>x"ff",
++        GRAMADR=>open,GRAMRD=>open,GRAMACK=>'0',
++        GRAMDAT0=>x"0000",GRAMDAT1=>x"0000",GRAMDAT2=>x"0000",GRAMDAT3=>x"0000",
++        ETRAM_ADR=>open,ETRAM_DAT=>x"00",ECURL=>"00000",ECURC=>"0000000",ECUREN=>'0',
++        ROUT=>r,GOUT=>g,BOUT=>b,HSYNC=>open,VSYNC=>vsync,VIDEOEN=>de,
++        TBASEADDR=>(others=>'0'),HMODE=>'1',VLINES=>"01111",TPITCH=>x"50",
++        GRAPHEN=>'0',DOTPLINE=>"00000",LOWBL=>'0',GCOLOR=>'1',MONOSEL=>"0000",TXTEN=>'1',
++        CURADDR=>(others=>'0'),CURE=>'0',CURUPPER=>0,CURLOWER=>15,CBLINK=>'0',BLINKRATE=>"01000",
++        GBASEADDR0=>(others=>'0'),GBASEADDR1=>(others=>'0'),
++        GLINENUM0=>(others=>'0'),GLINENUM1=>(others=>'0'),GPITCH=>x"28",
++        EMUMODE=>'0',VRTC=>vrtc,HRTC=>open,GPALNO=>open,GPALR=>x"0",GPALG=>x"0",GPALB=>x"0",
++        gclk=>pixel_clk,clk=>clk,rstn=>rstn,LINES480=>lines480);
++
++    process
++        variable visible, white_lines, vrtc_lines, frame : natural;
++        variable line_white : boolean;
++        variable heights : string(1 to 6) := "      ";
++        procedure measure_frame(expect : natural; tag : string) is
++        begin
++            -- start at a VSYNC rising edge
++            wait until rising_edge(vsync);
++            visible:=0;white_lines:=0;vrtc_lines:=0;
++            loop
++                wait until rising_edge(de) or rising_edge(vsync);
++                exit when vsync='1';
++                visible:=visible+1;
++                line_white:=false;
++                while de='1' loop
++                    wait until falling_edge(pixel_clk);
++                    if de='1' and (r & g & b)=x"fff" then line_white:=true; end if;
++                end loop;
++                if line_white then white_lines:=white_lines+1; end if;
++            end loop;
++            assert expect=0 or visible=expect
++                report tag & ": visible lines " & integer'image(visible) severity failure;
++            assert expect=0 or white_lines=visible
++                report tag & ": text rows stop at " & integer'image(white_lines) severity failure;
++            report "PASS " & tag & ": " & integer'image(visible) & " visible lines, text on "
++                & integer'image(white_lines);
++        end procedure;
++    begin
++        raw_rstn<='0';
++        wait for 1 us;
++        raw_rstn<='1';
++        measure_frame(0, "settle");
++        measure_frame(400, "640x400");
++        -- switch in the middle of a frame: that frame keeps its height
++        wait until rising_edge(de);
++        lines480<='1';
++        measure_frame(0, "switch frame");
++        assert visible=400 or visible=480
++            report "Mixed-height frame after the switch: " & integer'image(visible) severity failure;
++        measure_frame(480, "640x480");
++        measure_frame(480, "640x480 again");
++        lines480<='0';
++        measure_frame(0, "switch back");
++        measure_frame(400, "640x400 again");
++        done<=true;
++        wait;
++    end process;
++
++    -- VRTC (vertical retrace) covers the lines before the first visible one.
++    process
++        variable t0 : time;
++    begin
++        wait until lines480='1';
++        wait until rising_edge(vsync);
++        wait until rising_edge(vsync);
++        wait until rising_edge(vrtc);
++        t0:=now;
++        wait until falling_edge(vrtc);
++        -- 45 lines of 32 us (800 pixels at 25 MHz) = 1.44 ms
++        assert abs((now-t0)-1440 us) < 40 us
++            report "VRTC width in 480-line mode: " & time'image(now-t0) severity failure;
++        report "PASS VRTC spans the 45 blank lines: " & time'image(now-t0);
++        wait;
++    end process;
++
++    process begin wait until done for 400 ms;assert done report "watchdog" severity failure;wait;end process;
++end;
+diff --git a/tests/run-crtc-lines480.sh b/tests/run-crtc-lines480.sh
+new file mode 100644
+index 0000000..f869d92
+--- /dev/null
++++ b/tests/run-crtc-lines480.sh
+@@ -0,0 +1,16 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")/.."
++out=$(mktemp -d)
++trap 'rm -rf "$out"' EXIT
++# Only rename the legacy VMODE identifier (reserved in VHDL-2008).
++# VHDL-2008 is needed for expression actuals elsewhere in the original core.
++sed 's/\<VMODE\>/VMODE_LEGACY/g' VIDEO/textscr.vhd > "$out/textscr.vhd"
++sed 's/\<VMODE\>/VMODE_LEGACY/g' VIDEO/CRTC98.vhd > "$out/CRTC98.vhd"
++ghdl -a --std=08 -fsynopsys -fexplicit --workdir="$out" VIDEO/video_timing_pkg.vhd rtl/reset_release.vhd \
++    LIB/delayer.vhd VIDEO/VTIMING.vhd VIDEO/text_row_counter.vhd Zet98/knjaddrcnv.vhd \
++    VIDEO/knjscr.vhd "$out/textscr.vhd" VIDEO/GRAPHSCR98.vhd VIDEO/synccont2.vhd \
++    VIDEO/pegc_raster.vhd "$out/CRTC98.vhd" tests/crtc_lines480_tb.vhd
++ghdl -e --std=08 -fsynopsys -fexplicit --workdir="$out" crtc_lines480_tb
++ghdl -r --std=08 -fsynopsys -fexplicit --workdir="$out" crtc_lines480_tb --assert-level=error --ieee-asserts=disable-at-0
++
+diff --git a/tests/run-txtgdc-lines480.sh b/tests/run-txtgdc-lines480.sh
+new file mode 100644
+index 0000000..9397e1d
+--- /dev/null
++++ b/tests/run-txtgdc-lines480.sh
+@@ -0,0 +1,8 @@
++#!/usr/bin/env bash
++set -euo pipefail
++cd "$(dirname "$0")/.."
++out=$(mktemp -d)
++trap 'rm -rf "$out"' EXIT
++ghdl -a --std=08 -fsynopsys -fexplicit --workdir="$out" Zet98/GDC/txtgdc.vhd tests/txtgdc_lines480_tb.vhd
++ghdl -e --std=08 -fsynopsys -fexplicit --workdir="$out" txtgdc_lines480_tb
++ghdl -r --std=08 -fsynopsys -fexplicit --workdir="$out" txtgdc_lines480_tb --assert-level=error --ieee-asserts=disable-at-0
+diff --git a/tests/txtgdc_lines480_tb.vhd b/tests/txtgdc_lines480_tb.vhd
+new file mode 100644
+index 0000000..81ede68
+--- /dev/null
++++ b/tests/txtgdc_lines480_tb.vhd
+@@ -0,0 +1,79 @@
++library ieee;
++use ieee.std_logic_1164.all;
++use ieee.numeric_std.all;
++entity gdcfifo is
++    port(clock:in std_logic;data:in std_logic_vector(8 downto 0);
++         rdaddress,wraddress:in std_logic_vector(3 downto 0);
++         wren:in std_logic;q:out std_logic_vector(8 downto 0));
++end;
++architecture model of gdcfifo is
++    type ram_t is array(0 to 15) of std_logic_vector(8 downto 0);
++    signal ram:ram_t:=(others=>(others=>'0'));
++    signal ra:integer range 0 to 15:=0;
++begin
++    process(clock) begin if rising_edge(clock) then
++        ra<=to_integer(unsigned(rdaddress));
++        if wren='1' then ram(to_integer(unsigned(wraddress)))<=data;end if;
++    end if;end process;
++    q<=ram(ra);
++end;
++
++-- The text GDC's SYNC active-lines parameter (P7/P8) selects the 480-line
++-- display: AL above 400 sets LINES480, 400 or reset clears it.
++library ieee;
++use ieee.std_logic_1164.all;
++use ieee.numeric_std.all;
++entity txtgdc_lines480_tb is end;
++architecture test of txtgdc_lines480_tb is
++    signal clk,rstn,cs,wr:std_logic:='0';
++    signal addr:std_logic_vector(2 downto 0):="000";
++    signal din:std_logic_vector(7 downto 0):=x"00";
++    signal lines480:std_logic;
++    signal done:boolean:=false;
++    type bytes is array(natural range <>) of std_logic_vector(7 downto 0);
++begin
++    clk<=not clk after 5 ns when not done else '0';
++    dut:entity work.TXTGDC port map(CS=>cs,ADDR=>addr,RD=>'0',WR=>wr,DIN=>din,DOUT=>open,DOE=>open,
++        LPEND=>'0',VRTC=>'0',HRTC=>'0',
++        ATRSEL=>open,C40=>open,GRMONO=>open,FONTSEL=>open,GRPMODE=>open,KACMODE=>open,
++        NVMWPROT=>open,DISPEN=>open,COLORMODE=>open,EGCEN=>open,GDCCLK=>open,GDCCLK2=>open,
++        CUREN=>open,CHARLINES=>open,BLRATE=>open,CURBLINK=>open,CURUPPER=>open,CURLOWER=>open,
++        VIDEN=>open,SAD0=>open,SAD1=>open,SAD2=>open,SAD3=>open,SL0=>open,SL1=>open,SL2=>open,SL3=>open,
++        PITCH=>open,EAD=>open,LINES480=>lines480,clk=>clk,rstn=>rstn);
++    process
++        procedure put(command:boolean; value:std_logic_vector(7 downto 0)) is
++        begin
++            if command then addr<="001"; else addr<="000"; end if;
++            din<=value;cs<='1';wr<='1';
++            for i in 1 to 3 loop wait until rising_edge(clk); end loop;
++            wr<='0';cs<='0';
++            for i in 1 to 12 loop wait until rising_edge(clk); end loop;
++        end procedure;
++        procedure sync(p:bytes) is
++        begin
++            put(true,x"0e");
++            for i in p'range loop put(false,p(i)); end loop;
++            for i in 1 to 40 loop wait until rising_edge(clk); end loop;
++        end procedure;
++    begin
++        wait for 50 ns;rstn<='1';
++        for i in 1 to 10 loop wait until rising_edge(clk); end loop;
++        assert lines480='0' report "480-line mode set after reset" severity failure;
++        sync((x"10",x"4e",x"4b",x"0c",x"03",x"06",x"e0",x"95"));     -- AL = 480
++        assert lines480='1' report "SYNC AL=480 did not select 480 lines" severity failure;
++        sync((x"10",x"4e",x"47",x"0c",x"07",x"0d",x"90",x"89"));     -- AL = 400
++        assert lines480='0' report "SYNC AL=400 kept 480 lines" severity failure;
++        sync((x"10",x"4e",x"4b",x"0c",x"03",x"0b",x"db",x"95"));     -- AL = 475
++        assert lines480='1' report "SYNC AL=475 (480/25-row) not 480-line" severity failure;
++        -- other commands and fewer parameters leave it unchanged
++        put(true,x"47");put(false,x"50");
++        put(true,x"0e");put(false,x"10");put(false,x"4e");
++        for i in 1 to 40 loop wait until rising_edge(clk); end loop;
++        assert lines480='1' report "partial SYNC changed the line count" severity failure;
++        rstn<='0';wait for 20 ns;rstn<='1';
++        for i in 1 to 5 loop wait until rising_edge(clk); end loop;
++        assert lines480='0' report "reset kept 480 lines" severity failure;
++        report "PASS text GDC SYNC active lines select 640x480 (480/475) and 640x400";
++        done<=true;wait;
++    end process;
++end;

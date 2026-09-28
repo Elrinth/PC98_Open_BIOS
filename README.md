@@ -13,9 +13,9 @@ E.V.O. (LIO), Black Thorne, Nightslave and Lemmings. See the core's
 
 ## Using it on the MiSTer
 
-1. Download `boot.rom` from this repository's
-   [Releases](https://github.com/Elrinth/PC98_Open_BIOS/releases) (or build it,
-   below). It includes the free font.
+1. Download the zip from this repository's
+   [Releases](https://github.com/Elrinth/PC98_Open_BIOS/releases) and unzip
+   `boot.rom` (or build it, below). It includes the free font.
 2. Copy it to `/media/fat/games/PC98/boot.rom` (back up any existing file).
 3. Load the core. An OSD reset does not reload `boot.rom`; reload the core
    after replacing it.

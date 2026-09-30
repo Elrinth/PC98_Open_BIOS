@@ -35,8 +35,13 @@ PC-98 code assignment:
   squared unit words (milli, kilo, ...), mm/cm/km/mg/kg/cc/m2, era names,
   No./KK/TEL, circled and parenthesised kanji, and the mathematical symbols
   (copied from their JIS X 0208 positions where they exist).
-- Kanji rows 09h-0Bh (half-width characters in the 2-byte range) are copies
-  of the ANK glyphs; the 8x8 set is derived from the 8x16 glyphs.
+- Kanji rows 09h-0Ah (half-width characters in the 2-byte range) are copies
+  of the ANK glyphs (20h-7Fh, A0h-DFh). Row 0Bh follows NEC's half-width
+  assignment: 2B21h blank (some games print it as a space), tick marks, solid,
+  dashed and dotted lines, then corners, T-pieces and crosses in every
+  thin/thick combination (2B30h-2B6Fh), drawn from descriptions; quotes,
+  brackets and the dash at 2B70h-2B7Eh are cropped from the full-width glyphs.
+- The 8x8 set is derived from the 8x16 glyphs.
 
 These are approximations drawn from scratch, not NEC's bitmaps. Gaiji rows
 (76h/77h) start blank, as on real machines.

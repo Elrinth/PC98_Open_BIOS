@@ -13,7 +13,8 @@ Layout (see docs/FONT.md):
   1800h  kanji rows: row ku (1-5Ch) at 1800h + 0C00h * (ku - 1), glyph
          (ten - 20h) * 32: 16 bytes left half, 16 bytes right half.
 PC-98 specifics generated here: ANK 80h-9Fh/E0h-FFh semigraphics and the
-half-width JIS rows 09h-0Bh (copies of ANK 20h-7Fh/A0h-DFh).
+half-width JIS rows 09h-0Ah (copies of ANK 20h-7Fh/A0h-DFh) and 0Bh
+(half-width box-drawing pieces, quotes and brackets, as on NEC's ROM).
 """
 import argparse
 import sys
@@ -259,6 +260,92 @@ def semigraphics(kanji_px=None):
     return {k: to_rows(v) for k, v in g.items()}
 
 
+# ---------------------------------------------------------- half-width row 0Bh
+def halfwidth_row11(kanji_px):
+    """JIS row 0Bh (2B21h-2B7Eh) in NEC's code assignment, drawn from
+    descriptions: 2B21h is blank (games use it as a space), then marks, solid,
+    dashed and dotted lines, corners, T-pieces and crosses in each thin/thick
+    combination, quotes and brackets (cropped from the full-width glyphs)."""
+    out = {}
+    cols = {1: (4,), 2: (3, 4)}          # vertical arm columns, thin / thick
+    rows = {1: (7,), 2: (7, 8)}          # horizontal arm rows
+
+    def box(u=0, d=0, l=0, r=0):
+        px = blank()
+        vcols = [c for w in (u, d) if w for c in cols[w]]
+        x_first = min(vcols) if vcols else 4
+        for w, ys in ((u, range(0, 8)), (d, range(7, 16))):
+            for y in ys if w else ():
+                for x in cols[w]:
+                    px[y][x] = 1
+        for w, xs in ((l, range(0, 5)), (r, range(x_first, 8))):
+            for x in xs if w else ():
+                for y in rows[w]:
+                    px[y][x] = 1
+        return px
+
+    def pattern(horizontal, weight, on):
+        px = blank()
+        for i in range(16 if not horizontal else 8):
+            if i in on:
+                for t in (rows if horizontal else cols)[weight]:
+                    if horizontal:
+                        px[t][i] = 1
+                    else:
+                        px[i][t] = 1
+        return px
+
+    def ticks(y):
+        px = blank()
+        for x in (2, 5):
+            line(px, x, y, x - 1, y + 2)
+            px[y + 1][x] = 1
+        return px
+
+    out[0x21] = blank()
+    out[0x22] = ticks(0)
+    out[0x23] = ticks(13)
+    out[0x24], out[0x25] = box(l=1, r=1), box(l=2, r=2)
+    out[0x26], out[0x27] = box(u=1, d=1), box(u=2, d=2)
+    dash_h, dash_v = (1, 2, 3, 5, 6, 7), (0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14)
+    dot_h, dot_v = (1, 2, 5, 6), (1, 2, 5, 6, 9, 10, 13, 14)
+    for ten, (hz, on) in zip(range(0x28, 0x30, 2), ((1, dash_h), (0, dash_v), (1, dot_h), (0, dot_v))):
+        out[ten], out[ten + 1] = pattern(hz, 1, on), pattern(hz, 2, on)
+    # corners: horizontal weight varies fastest, then the vertical one
+    for base, (h, v) in zip(range(0x30, 0x40, 4), (('r', 'd'), ('l', 'd'), ('r', 'u'), ('l', 'u'))):
+        for i, (hw, vw) in enumerate(((1, 1), (2, 1), (1, 2), (2, 2))):
+            out[base + i] = box(**{h: hw, v: vw})
+    # T-pieces: the thick arms of each variant, in NEC's order
+    tee = ((), ('s',), ('a',), ('b',), ('a', 'b'), ('a', 's'), ('b', 's'), ('a', 'b', 's'))
+    for base, (a, b, s) in ((0x40, ('u', 'd', 'r')), (0x48, ('u', 'd', 'l')),
+                           (0x50, ('l', 'r', 'd')), (0x58, ('l', 'r', 'u'))):
+        names = {'a': a, 'b': b, 's': s}
+        order = tee if base < 0x50 else ((), ('a',), ('b',), ('a', 'b'), ('s',), ('a', 's'), ('b', 's'), ('a', 'b', 's'))
+        for i, thick in enumerate(order):
+            out[base + i] = box(**{n: 2 if k in thick else 1 for k, n in names.items()})
+    cross = ('', 'l', 'r', 'lr', 'u', 'd', 'ud', 'ul', 'ur', 'dl', 'dr', 'ulr', 'dlr', 'udl', 'udr', 'udlr')
+    for i, thick in enumerate(cross):
+        out[0x60 + i] = box(**{n: 2 if n in thick else 1 for n in 'udlr'})
+
+    def crop(jis):
+        src = kanji_px.get(jis) if kanji_px else None
+        if not src:
+            return blank()
+        xs = [x for x in range(16) if any(row[x] for row in src)]
+        if not xs:
+            return blank()
+        x0, x1 = xs[0], xs[-1]
+        if x1 - x0 + 1 > 8:
+            return scale([row[x0:x1 + 1] for row in src], 8, 16)
+        start = max(0, min(16 - 8, (x0 + x1 + 1) // 2 - 4))
+        return [row[start:start + 8] for row in src]
+
+    for ten, jis in zip(range(0x70, 0x7f), (0x2147, 0x2149, 0x2146, 0x2148, 0x214a, 0x214b, 0x2152,
+                                             0x2153, 0x2154, 0x2155, 0x214e, 0x214f, 0x215a, 0x215b, 0x213d)):
+        out[ten] = crop(jis)
+    return {k: to_rows(v) for k, v in out.items()}
+
+
 # ---------------------------------------------------------------- NEC row 0Dh
 def nec_row13(ank_px, kanji_px):
     """JIS row 0Dh (2D21h-2D7Ch), NEC special characters, composed from the
@@ -409,16 +496,15 @@ def build(ank_bdf, kanji_bdf):
     for code, px in extra.items():
         put((code >> 8) - 0x20, code & 0xff, to_rows(px))
     # half-width rows 09h-0Bh (left halves): 9 = ANK 20h-7Fh, 10 = A0h-DFh,
-    # 11 = graphics 80h-9Fh then E0h-FFh
+    # 11 = NEC's half-width box pieces, quotes and brackets
+    row11 = halfwidth_row11(kanji_px)
     for ten in range(0x21, 0x7f):
         def half(code):
             return [r << 8 for r in rom[0x800 + code * 16:0x800 + code * 16 + 16]]
         put(0x09, ten, half(ten))
         if 0xa0 + ten - 0x20 < 0xe0:
             put(0x0a, ten, half(0xa0 + ten - 0x20))
-        g = 0x80 + (ten - 0x21) if ten < 0x41 else 0xe0 + (ten - 0x41)
-        if g <= 0xff:
-            put(0x0b, ten, half(g))
+        put(0x0b, ten, [r << 8 for r in row11.get(ten, [0] * 16)])
     return bytes(rom), len(ank), len(kanji) + len(extra)
 
 

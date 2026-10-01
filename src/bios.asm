@@ -40,6 +40,8 @@ section bank_f000
 f000_start:
 %include "post.asm"
 %include "boot.asm"
+    times 4000h-($-$$) db 0FFh         ; F400:0000
+%include "dos_sig.asm"
     times 8000h-($-$$) db 0FFh
 
 ; ---------------------------------------------------------------- F800 bank

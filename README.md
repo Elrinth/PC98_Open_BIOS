@@ -8,7 +8,7 @@ V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
 **Status (2026-09-29): runs on the MiSTer with core B218.** It boots MS-DOS
 6.20 from VHD; games tested with it include Rusty, Flame Zapper Kotsujin,
-E.V.O. (LIO), Black Thorne, Nightslave and Lemmings. See the core's
+E.V.O. (LIO; the MS-DOS 3.30 hard-disk version too), Black Thorne, Nightslave and Lemmings. See the core's
 [game setup notes](https://github.com/Elrinth/Zet98_486_MiSTer#game-setup-notes).
 
 ## Using it on the MiSTer
@@ -93,3 +93,7 @@ accompany binary releases.
 - NP2kai (BSD-3-Clause) is the behavioural reference for service semantics;
   files that adapt its tables or algorithms say so.
 - The shipped character generator must come from freely licensed bitmap fonts.
+- Interoperability signature: NEC MS-DOS 3.30 IO.SYS refuses to run unless
+  F000:0000 or F400:0000 holds an AH-indexed service dispatcher of a fixed
+  shape (37 bytes it compares). `src/dos_sig.asm` is this BIOS's own working
+  dispatcher in that shape, written from IO.SYS's check, not from the ROM.

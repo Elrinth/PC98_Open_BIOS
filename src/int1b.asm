@@ -33,7 +33,53 @@ L_DMA           equ -19         ; 1 armed, 2 stopped at terminal count
 L_SEEK          equ -20         ; 1 while waiting for a seek
 L_SIZE          equ 20
 
+; Loaders call the disk BIOS on whatever stack they have, and some have very
+; little: Metal Orange's PRECO-IPL keeps its sector table 58 bytes below its
+; SS:SP, while a floppy request needs about 74 bytes (register frame, locals,
+; nested calls) and overwrote the table's sector count. Requests therefore run
+; on a private stack in this bank (boot.rom is writable SDRAM on the core,
+; docs/CORE_HARDWARE.md); the caller's stack holds only its IRET frame and a
+; word. A call made while already on it, from an interrupt during a request,
+; runs in place.
 int1b_entry:
+    push ax
+    mov ax, ss
+    cmp ax, SEG_F800
+    pop ax
+    je int1b_body
+    cli
+    mov [cs:int1b_caller_sp], sp
+    mov [cs:int1b_caller_ss], ss
+    push cs
+    pop ss
+    mov sp, int1b_stack_top
+    mov [cs:int1b_scratch], si
+    mov [cs:int1b_scratch+2], ds
+    lds si, [cs:int1b_caller_sp]
+    push word [si+4]                ; the caller's FLAGS (result CF is set in it)
+    push cs
+    push word int1b_exit
+    lds si, [cs:int1b_scratch]
+    jmp int1b_body
+
+; The body's IRET lands here with the result flags; copy CF into the caller's
+; frame and return on its own stack.
+int1b_exit:
+    cli
+    mov ss, [cs:int1b_caller_ss]
+    mov sp, [cs:int1b_caller_sp]
+    push bp
+    mov bp, sp
+    jc .error
+    and byte [bp+6], 0FEh
+    pop bp
+    iret
+.error:
+    or byte [bp+6], 01h
+    pop bp
+    iret
+
+int1b_body:
     sti
     cld
     push ds
@@ -456,10 +502,11 @@ fd_drive_status:
 ; to memory, 48h read from memory, 40h verify). AL = 20h on a 64 KiB
 ; boundary crossing, else 0.
 fd_setup_dma:
-    push bx
-    push cx
-    push dx
-    push di
+    push eax                       ; keep the caller's upper halves
+    push ebx
+    push ecx
+    push edx
+    push edi
     mov ah, al
     movzx edi, word [bp+F_ES]
     shl edi, 4
@@ -523,10 +570,15 @@ fd_setup_dma:
 .boundary:
     mov al, 20h
 .done:
-    pop di
-    pop dx
-    pop cx
+    pop edi
+    pop edx
+    pop ecx
+    pop ebx
+    push bx
+    mov bx, sp
+    mov [ss:bx+2], al              ; AL = result, rest of EAX restored
     pop bx
+    pop eax
     ret
 
 fd_stop_dma:

@@ -121,8 +121,10 @@ lio_common:
     mov bx, [bp+2]
     add bx, bx
     call lio_update
+    pushad                         ; the arc code uses 32-bit registers
     call [cs:lio_table+bx]
     mov [bp+L_AH], al              ; status
+    popad
     mov sp, bp
     sub sp, 16
     pop ax

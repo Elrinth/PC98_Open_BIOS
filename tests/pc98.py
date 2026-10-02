@@ -433,6 +433,9 @@ class PC98:
         u.mem_map(0xd8000, 0x8000)
         u.mem_map(0xe0000, 0x8000)
         u.mem_map(0xe8000, 0x18000, UC_PROT_READ | UC_PROT_EXEC)
+        # boot.rom is writable SDRAM on the core; the BIOS keeps its INT 1Bh
+        # stack in this page (FD700h-FD7FFh).
+        u.mem_protect(0xfd000, 0x1000, UC_PROT_ALL)
         u.mem_write(0xe8000, rom[:0x18000])
         if disk_rom:
             u.mem_write(0xd0000, Path(disk_rom).read_bytes()[:0x8000])

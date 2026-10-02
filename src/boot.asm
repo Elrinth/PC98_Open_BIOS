@@ -70,6 +70,13 @@ extrom_scan:
 ; Boot sequence. Entered from POST and from the ROM-BASIC stub.
 boot_restart:
     cli
+    xor eax, eax                   ; POST leaves junk in the upper halves;
+    xor ebx, ebx                   ; EMM386 indexes with ECX after mov cx
+    xor ecx, ecx
+    xor edx, edx
+    xor esi, esi
+    xor edi, edi
+    xor ebp, ebp
     xor ax, ax
     mov ds, ax
     mov ss, ax

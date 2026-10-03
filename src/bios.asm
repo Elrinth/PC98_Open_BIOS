@@ -31,7 +31,7 @@ section bank_f800 start=10000h vstart=0
 ; ---------------------------------------------------------------- E800 bank
 section bank_e800
 e800_start:
-%include "basic_stub.asm"
+%include "basic/basic.asm"
 %include "lio.asm"
     times 8000h-($-$$) db 0FFh
 

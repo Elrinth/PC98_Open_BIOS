@@ -242,6 +242,11 @@ class FDC:
             return unit < 3
         return unit < 2 and self.drives[unit] is not None and bool(self.control & 0x08)
 
+    def density_ok(self, disk):
+        # the core's drive plays the image at its own bit rate: a 2DD/2D disk
+        # cannot be read with BEh bit 1 (2HD mode) set, nor a 2HD disk without it
+        return (disk.media == '2HD') == self.hd
+
     def broken(self):
         # without DMA command bit 6 the core's FDC sees a permanent DACK
         return not self.dma.command & 0x40
@@ -337,7 +342,7 @@ class FDC:
             if not self.ready(u):
                 self.finish([0x48 | st0, 0, 0, 0, 0, 0, 0])
                 return
-            track = d.tracks.get((self.cyl[u], h), [])
+            track = d.tracks.get((self.cyl[u], h), []) if self.density_ok(d) else []
             match = [s for s in track if s.fm == (not mf)]
             if not match:
                 self.finish([0x40 | st0, 0x01, 0, 0, 0, 0, 0])
@@ -372,7 +377,7 @@ class FDC:
             return
         chan = self.dma_channel()
         while True:
-            track = d.tracks.get((self.cyl[u], h), [])
+            track = d.tracks.get((self.cyl[u], h), []) if self.density_ok(d) else []
             sec = next((s for s in track if s.c == c and s.h == hh and s.r == r and s.n == n
                         and s.fm == (not mf)), None)
             if sec is None:

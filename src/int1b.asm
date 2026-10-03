@@ -131,6 +131,57 @@ int1b_body:
     call [cs:fd_table+bx]
     call fd_restore_irq
 .status:
+%ifdef DEBUG_1B
+    ; debug: log "command unit status" of every call on text lines 3-21
+    push es
+    push di
+    push ax
+    push bx
+    push cx
+    mov bx, 0A000h
+    mov es, bx
+    mov di, [es:0F9Eh]
+    cmp di, 160*3
+    jb .dfix
+    cmp di, 160*21
+    jb .dok
+.dfix:
+    mov di, 160*3
+.dok:
+    mov ch, al
+    mov al, [bp+F_AH]
+    call .dhex
+    mov al, [bp+F_AL]
+    call .dhex
+    mov al, ch
+    call .dhex
+    add di, 2
+    mov [es:0F9Eh], di
+    pop cx
+    pop bx
+    pop ax
+    pop di
+    pop es
+    jmp .dend
+.dhex:
+    push ax
+    shr al, 4
+    call .dnib
+    pop ax
+.dnib:
+    and al, 0Fh
+    add al, '0'
+    cmp al, '9'
+    jbe .dn
+    add al, 7
+.dn:
+    mov [es:di], al
+    mov byte [es:di+1], 0
+    mov byte [es:di+2000h], 0E1h
+    add di, 2
+    ret
+.dend:
+%endif
     mov [bp+F_AH], al
     and byte [bp+F_FLAGS], 0FEh
     cmp al, 20h

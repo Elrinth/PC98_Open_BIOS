@@ -151,9 +151,9 @@ floppy_try:
     mov ah, 07h                    ; recalibrate
     int 1Bh
     jc .fail
-    mov bl, 40h                    ; MFM first, then FM
-.density:
-    mov al, [DISK_BOOT]
+    xor bl, bl                     ; FM first, then MFM, as NEC machines do:
+.density:                          ; the core's FDC can report an MFM ID on
+    mov al, [DISK_BOOT]            ; an FM track (N88-BASIC disks)
     mov ah, 0Ah
     or ah, bl
     xor cx, cx
@@ -161,7 +161,7 @@ floppy_try:
     int 1Bh                        ; READ ID: CH = N
     jnc .found
     xor bl, 40h
-    jz .density
+    jnz .density
     jmp .fail
 .found:
     movzx si, bl                   ; SI = MFM flag (40h) for the read

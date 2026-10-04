@@ -6,9 +6,15 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
-**Status (2026-09-29): runs on the MiSTer with core B218.** It boots MS-DOS
-6.20 from VHD; games tested with it include Rusty, Flame Zapper Kotsujin,
-E.V.O. (LIO; the MS-DOS 3.30 hard-disk version too), Black Thorne, Nightslave and Lemmings. See the core's
+**Status (2026-10-04): verified on MiSTer with core B240.** Policenauts
+boots with EMM386 and the user confirms smooth PCM music with the matching
+core fix. Cyberblock Metal Orange reaches New Start with smooth music during
+loading; Hokuto no Ken's N88-BASIC title and interactive story scenes run.
+Use release **2026-10-04.1** with B240 for the Policenauts floppy DMA fix.
+
+Earlier checks include MS-DOS 6.20 from VHD, Rusty, Flame Zapper Kotsujin,
+E.V.O. (LIO; the MS-DOS 3.30 hard-disk version too), Black Thorne, Nightslave
+and Lemmings. See the core's
 [game setup notes](https://github.com/Elrinth/Zet98_486_MiSTer#game-setup-notes).
 
 ## Using it on the MiSTer

@@ -34,6 +34,67 @@ def read(m, c, h, r, n, size, ah=0x56, al=0x90):
     return out, m.mem(BUF * 16, size)
 
 
+def stale_virtual_tc():
+    """An EMM386-style status latch plus delayed hardware DMA, read/write.
+
+    Older cores retain physical TC after a status read. The monitor latches
+    it during virtual programming, then commits fresh physical registers on
+    unmask. Its virtual TC latch survives that commit until a status read.
+    """
+    for operation in ('read', 'write'):
+        m = machine()
+        code = m.mem(0xf8000, 0x8000)
+        detector = bytes.fromhex('0f01e0')
+        assert code.count(detector) == 1
+        next_pc = 0xf8000 + code.index(detector) + len(detector)
+        def pe_result(u, address, size, data):
+            u.reg_write(UC_X86_REG_AX, u.reg_read(UC_X86_REG_AX) | 1)
+        m.u.hook_add(UC_HOOK_CODE, pe_result, begin=next_pc, end=next_pc)
+        original_write, original_read = m.dma.write, m.dma.read
+        latched, stale_physical = 0, 4       # previous channel 2 TC
+        def poll_status():
+            nonlocal latched
+            latched |= stale_physical | original_read(0x11)
+        def monitor_write(port, value):
+            nonlocal stale_physical
+            poll_status()
+            original_write(port, value)
+            if port == 0x15 and value == 2:  # physical commit on unmask
+                stale_physical = 0
+        def monitor_read(port):
+            nonlocal latched
+            if port != 0x11:
+                return original_read(port)
+            poll_status()
+            result, latched = latched, 0
+            return result
+        m.dma.write, m.dma.read = monitor_write, monitor_read
+        execute, poll = m.fdc.execute, m.fdc.poll
+        pending = []
+        def delayed_execute(command):
+            if command[0] & 0x1f in (5, 6):
+                pending.append((m.now + 0.003, list(command)))
+            else:
+                execute(command)
+        def delayed_poll(now):
+            poll(now)
+            if pending and now >= pending[0][0]:
+                _, command = pending.pop(0)
+                execute(command)
+        m.fdc.execute, m.fdc.poll = delayed_execute, delayed_poll
+        if operation == 'read':
+            want = bytes(m.fdc.drives[0].tracks[(0, 0)][0].data)
+            out, actual = read(m, 0, 0, 1, 3, 1024)
+        else:
+            want = bytes(range(256)) * 4
+            m.u.mem_write(0x30000, want)
+            out = m.call_int(0x1b, ax=0x5590, bx=1024, cx=0x0300,
+                             dx=1, es=0x3000, bp=0)
+            actual = bytes(m.fdc.drives[0].tracks[(0, 0)][0].data)
+        check(f'virtual DMA {operation} after stale terminal count',
+              not out['cf'] and actual == want, hex(out['ax']))
+
+
 def main():
     m = machine()
     disk = m.fdc.drives[0]
@@ -117,6 +178,7 @@ def main():
         check('virtual DMA write/readback', not out['cf'] and data == payload)
         check('virtual DMA reset before each transfer', len(pointer_resets) == 4)
         check('virtual DMA command preserved', virtual.dma.command == 0x40)
+    stale_virtual_tc()
     print('FAILED:' if failures else 'ALL PASS', ', '.join(failures))
     return 1 if failures else 0
 

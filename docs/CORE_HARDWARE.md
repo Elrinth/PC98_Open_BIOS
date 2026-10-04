@@ -111,6 +111,14 @@ pulses and stepping are emulated). Rules the BIOS follows:
   port 19h fix for the monitor's physical DMA programming too. The core
   must also leave the non-auto-initialized DMA count at FFFFh after TC;
   reloading it makes DMA monitors see an incomplete transfer.
+  After unmasking, read status at 11h before issuing the FDC command.
+  EMM386 polls physical status during virtual programming, and older cores
+  retain physical TC until the channel is reprogrammed. Draining before
+  programming is insufficient: the monitor latches it again on subsequent
+  register writes. A stale virtual TC can otherwise mask the new transfer
+  before its first byte and return successful, zero-filled driver reads.
+  This was reproduced with asynchronous DMA and on Policenauts hardware;
+  the corrected BIOS reaches its title with smooth PCM on the PCM-fixed core.
 - **FRY (94h/CCh bit 6) is inverted versus NP2**: 0 (reset) forces READY,
   1 passes the drive's real ready (image loaded and motor on, bit 3).
   Use 48h.

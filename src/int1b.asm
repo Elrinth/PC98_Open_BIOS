@@ -667,6 +667,12 @@ fd_setup_dma:
     out dx, al
     mov al, bl
     out 15h, al                    ; unmask
+    ; EMM386 polls physical TC while programming virtual registers. Older
+    ; cores keep that TC set until reprogrammed, so the monitor may still
+    ; report the previous transfer here. Drain its latched status only
+    ; after unmask commits the new physical parameters, before the FDC
+    ; command starts. Otherwise the first poll masks DMA before any data.
+    in al, 11h
     mov byte [bp+L_DMA], 1
     xor al, al
     jmp .done

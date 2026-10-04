@@ -5,10 +5,10 @@
 ;
 ; Floppy requests drive the core's uPD765 through the 8237 (see
 ; docs/CORE_HARDWARE.md, "Floppy"). Completion is detected from the FDC
-; interrupt's IRR bit with CPU interrupts disabled, not by taking the
-; interrupt: the core's 8259 never nests, so an interrupt-driven wait would
-; deadlock when INT 1Bh is called from an ISR, and the FDC main status
-; register looks like a result phase whenever a DMA byte is pending.
+; interrupt handler's flag, or its IRR bit when called from an ISR that
+; blocks FDC interrupt delivery. Interrupts stay enabled during the wait
+; so timer and sound handlers can run. The FDC main status register looks
+; like a result phase whenever a DMA byte is pending.
 ;
 ; AL = DA/UA: bits 7-4 device, bits 1-0 unit
 ;   90h  1 MB interface, 2HD         10h  1 MB interface, 2DD media
@@ -247,8 +247,8 @@ fd_select_interface:
     out dx, al
     ret
 
-; Keep the FDC interrupt line unmasked (so its IRR bit is visible) but run
-; with CPU interrupts disabled; the saved slave IMR is restored at the end.
+; Keep the FDC interrupt line unmasked so its handler can run and its IRR
+; bit is visible; the saved slave IMR is restored at the end.
 fd_mask_irq:
     in al, PIC_S1
     mov [bp+L_IMR], al
@@ -613,12 +613,29 @@ fd_setup_dma:
     or al, 04h
     out 15h, al                    ; mask the channel
     out CPU_RESET_WAIT, al
-    mov al, 44h                    ; hold the byte flip-flops cleared;
-    out 11h, al                    ; bit 6 (DACK active high) must stay set
+    ; In V86 mode EMM386 owns the DMA registers and implements the standard
+    ; clear-byte-pointer port. Changing the global command to 44h makes NEC
+    ; EMM386 reject the transfer as an unsupported DMA mode. SMSW is allowed
+    ; in V86 and exposes PE; PUSHFD cannot identify V86 (it clears VM).
+    push ax
+    smsw ax
+    test al, 1
+    pop ax
+    jnz .virtual_dma
+    ; Direct access: retain compatibility with older cores lacking port
+    ; 19h by disabling/re-enabling DMA, keeping DACK active high.
+    mov al, 44h
+    out 11h, al
     out CPU_RESET_WAIT, al
     mov al, 40h
     out 11h, al
     out CPU_RESET_WAIT, al
+    jmp .dma_mode
+.virtual_dma:
+    xor al, al
+    out 19h, al                    ; EMM386's virtual DMA byte pointer
+    out CPU_RESET_WAIT, al
+.dma_mode:
     mov al, ah
     or al, bl
     out 17h, al                    ; mode

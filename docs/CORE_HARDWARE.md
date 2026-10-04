@@ -16,7 +16,7 @@ Survey of `L:\dev\Zet98_Improved_Core\PC98_MiSTer` (2026-09-26). ZM =
 | Port | Device | Notes |
 |---|---|---|
 | 00h/02h, 08h/0Ah | 8259 master/slave | Master/slave chosen by **ICW4 bit 2** (master 1Dh + ICW3 80h, slave 09h + ICW3 07h). IMR resets to 00h. No nesting: INT only when ISR = 0. Non-specific EOI clears the whole ISR. No poll mode. |
-| 01h-1Fh odd | 8237 DMA | Only ch2 (1 MB FDC) and ch3 (640 KB FDC) have requests. **19h/1Bh unimplemented**; per-channel byte flip-flop held at LSB while 11h bit 2 = 1 (write 04h then 00h to resync). Mask resets to 00h. No auto-mask on TC. |
+| 01h-1Fh odd | 8237 DMA | Only ch2 (1 MB FDC) and ch3 (640 KB FDC) have requests. New core DMA fix implements 19h (clear all byte pointers); older cores ignore it. 1Bh remains unimplemented. Per-channel byte flip-flop held at LSB while 11h bit 2 = 1. Mask resets to 00h. No auto-mask on TC. |
 | 21h/23h/25h/27h | DMA bank (ch1/ch2/ch3/ch0) | 4 bits: DMA reaches 1 MB only. 29h: bank mode. |
 | 20h | uPD4990 | bit 5 DI, 4 CLK, 3 STB, 2-0 C2-C0. Data out at 33h bit 0. |
 | 31h | DIP switch 2 | bit 7 = GDC 2.5 MHz (default 1), others 0. |
@@ -105,8 +105,12 @@ pulses and stepping are emulated). Rules the BIOS follows:
 
 - **DMA command 11h must keep bit 6 set (40h).** It selects DACK polarity;
   with 00h the FDC sees a permanent DACK and hijacks the I/O bus. Reset the
-  per-channel byte flip-flops with `11h <- 44h` then `11h <- 40h` (19h/1Bh
-  are not implemented).
+  per-channel byte flip-flops with `11h <- 44h` then `11h <- 40h` for
+  compatibility with older cores. Under EMM386, use standard port 19h:
+  NEC EMM386 rejects the global command 44h. This requires the core's
+  port 19h fix for the monitor's physical DMA programming too. The core
+  must also leave the non-auto-initialized DMA count at FFFFh after TC;
+  reloading it makes DMA monitors see an incomplete transfer.
 - **FRY (94h/CCh bit 6) is inverted versus NP2**: 0 (reset) forces READY,
   1 passes the drive's real ready (image loaded and motor on, bit 3).
   Use 48h.
@@ -126,8 +130,10 @@ pulses and stepping are emulated). Rules the BIOS follows:
 - A SEEK/RECALIBRATE end interrupt is lost if another command is being
   processed at that moment: send nothing while the head steps.
 - READ ends on TC (IC=00) or at EOT without MT (IC=01, EN). WRITE needs
-  TC. TC mid-sector does not stop the sector: the DMA count reloads and the
-  channel is not masked, so the BIOS masks the channel when it sees TC.
+  TC. TC mid-sector does not stop the sector, and the channel is not
+  automatically masked, so the BIOS masks the channel when it sees TC.
+  Older cores reloaded the count even without auto-initialize; the fixed
+  core leaves FFFFh in that case and reloads only in auto-initialize mode.
 - Every command end also sets the SENSE INTERRUPT status (ST0 + PCN).
 - DMA mode register: 46h/47h read to memory, 4Ah/4Bh write from memory;
   verify (00b) and block mode do not work, 11b hangs the bus. Bank ports

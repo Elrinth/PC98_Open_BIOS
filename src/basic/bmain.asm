@@ -82,6 +82,8 @@ b_init:
     mov word [KBUFPTR], KBUF
     mov word [B_VSEG], 1000h        ; without a disk module
     mov word [B_STRTOP], STR_TOP_DEFAULT
+    call b_set_fbuf
+    call fs_init
     call b_set_vseg
     mov word [TXTTAB], TXT_DEFAULT
     mov word [CURLIN], 0FFFFh
@@ -108,8 +110,13 @@ b_init:
     mov [es:9Eh*4+2], cs
     mov word [es:0C4h*4], b_intc4
     mov [es:0C4h*4+2], cs
+    mov word [es:87h*4], b_int87
+    mov [es:87h*4+2], cs
     pop es
     ; LIO state at BSEG:0620h, text console
+    mov dword [0434h], 0            ; NEC console fields (words)
+    mov dword [0438h], 0
+    mov word [043Ch], 0
     mov byte [B_TATTR], 0E1h
     mov byte [B_WIDTH], 80
     mov byte [B_LINES], 25
@@ -119,8 +126,22 @@ b_init:
     xor bx, bx
     mov ah, 0
     int 0A0h                        ; LIO GINIT (DS = BSEG)
+    xor ax, ax
+    mov [G_LX], ax
+    mov [G_LY], ax
+    mov [G_OX], ax
+    mov [G_OY], ax
     call b_cls_text
     call b_new
+    ret
+
+; File buffers just below the string top, 256-byte aligned (no DMA
+; boundary inside one: VSEG is a multiple of 10h).
+b_set_fbuf:
+    mov ax, [B_STRTOP]
+    sub ax, FS_NFILES*256
+    xor al, al
+    mov [B_FBUF], ax
     ret
 
 ; VSEG = [B_VSEG]: publish it, load FS.
@@ -140,7 +161,16 @@ b_new:
 b_clear_vars:
     mov word [B_VARTAB], VAR_START
     mov word [B_VAREND], VAR_START
-    mov ax, [B_STRTOP]
+    mov word [B_ARYEND], VAR_START
+    mov word [B_ADATA], VAR_START
+    mov word [B_ADEND], VAR_START
+    mov word [fs:0000h], VAR_START  ; NEC's VSEG header: variables start
+    mov word [fs:0002h], VAR_START  ; and end ([0002h] is read by programs)
+    mov word [fs:0004h], VAR_START
+    mov word [B_ONERR], 0
+    mov byte [B_INERR], 0
+    mov word [B_FNCNT], 0
+    mov ax, [B_FBUF]
     mov [B_FRETOP], ax
     mov word [B_TSP], 0
     mov word [B_DATPTR], 0
@@ -234,6 +264,7 @@ b_ds_es:
 ; ---------------------------------------------------------------- statement loop
 stmt_next:
     mov [B_STMT], si
+    mov [B_STMTSP], sp
 .skip:
     mov al, [si]
     inc si
@@ -248,10 +279,22 @@ stmt_next:
     je stmt_next
     test al, al
     jz stmt_eol
+    cmp al, '*'
+    je .label
     cmp al, 80h
     jb .let
     cmp al, 0FFh
-    je stmt_eol                     ; FFh at a statement start: REM
+    jne .tok
+    cmp byte [si], F_MID_S|80h      ; FFh 81h: the MID$ statement
+    je stmt_midassign
+    cmp byte [si], F_POINT|80h      ; FFh 82h: POINT (x,y)
+    je stmt_point
+    cmp byte [si], F_VIEW|80h       ; FFh 85h: VIEW
+    je stmt_view
+    cmp byte [si], F_WINDOW|80h
+    je err_feature
+    jmp stmt_eol                    ; FFh at a statement start: REM
+.tok:
     movzx bx, al
     sub bx, 80h
     shl bx, 1
@@ -259,6 +302,11 @@ stmt_next:
 .let:
     dec si
     jmp stmt_let
+.label:                             ; *NAME: a jump target, nothing to do
+    movzx ax, byte [si+1]
+    add si, ax
+    add si, 2
+    jmp stmt_next
 
 ; SI after a statement: ':' or end of line (or ELSE after a THEN branch).
 stmt_end:
@@ -302,6 +350,79 @@ b_goto_bx:
     mov [CURLIN], ax
     lea si, [bx+4]
     jmp stmt_next
+
+; Jump target at SI: line number (0Eh nnnn) or label (*NAME) -> BX = line
+; header; SI after it. Undefined line number error when not found.
+b_get_target:
+    call b_skipsp
+    cmp al, '*'
+    je .label
+    cmp al, 0Eh
+    jne err_syntax
+    inc si
+    lodsw
+    call b_find_line
+    jc err_line
+    ret
+.label:
+    inc si
+    call b_find_label
+    jc err_line
+    ret
+
+; Label name at SI (letter, count, rest) -> BX = header of the line that
+; starts with *NAME, CF if none; SI after the name.
+b_find_label:
+    push cx
+    push dx
+    push di
+    mov dx, si
+    movzx cx, byte [si+1]
+    add cx, 2
+    add si, cx
+    push si
+    mov bx, [TXTTAB]
+.l:
+    cmp word [bx], 0
+    je .no
+    lea di, [bx+4]
+.sp:
+    mov al, [di]
+    cmp al, ' '
+    je .b
+    cmp al, 01h
+    jb .chk
+    cmp al, 0Ah
+    ja .chk
+.b:
+    inc di
+    jmp .sp
+.chk:
+    cmp al, '*'
+    jne .next
+    inc di
+    push cx
+    mov si, dx
+    repe cmpsb
+    pop cx
+    je .yes
+.next:
+    add bx, [bx]
+    jmp .l
+.no:
+    pop si
+    pop di
+    pop dx
+    pop cx
+    stc
+    ret
+.yes:
+    pop si
+    pop di
+    pop dx
+    pop cx
+    clc
+    ret
 
 ; AX = line number -> BX = line header, CF set if there is no such line.
 b_find_line:
@@ -355,25 +476,21 @@ b_at_end:
 .r:
     ret
 
-; Skip to the end of the statement (outside quotes): SI at ':' / 0.
+; Skip to the end of the statement, token by token: SI at ':' / 0 / ELSE.
 b_skip_stmt:
+    push ax
+.l:
     mov al, [si]
     test al, al
     jz .r
     cmp al, ':'
     je .r
-    inc si
-    cmp al, '"'
-    jne b_skip_stmt
-.q:
-    mov al, [si]
-    test al, al
-    jz .r
-    inc si
-    cmp al, '"'
-    jne .q
-    jmp b_skip_stmt
+    cmp al, T_ELSE
+    je .r
+    call b_tok_skip
+    jmp .l
 .r:
+    pop ax
     ret
 
 ; ---------------------------------------------------------------- errors
@@ -402,15 +519,35 @@ err_div0:
     mov al, E_DIV0
     jmp b_error
 
-; AL = error code: print the message and the line, back to direct mode.
+; AL = error code: to the ON ERROR handler, or print the message and the
+; line and go back to direct mode.
 b_error:
     cld
     mov bx, BSEG
     mov ds, bx
     mov es, bx
     mov ss, bx
-    mov sp, B_STACK
     mov fs, [B_VSEG]
+    cmp word [B_ONERR], 0
+    je .report
+    cmp byte [B_INERR], 0
+    jne .report
+    cmp word [CURLIN], 0FFFFh
+    je .report
+    mov [B_ERRNO], al
+    mov bx, [CURLIN]
+    mov [B_ERRLINE], bx
+    mov bx, [B_CURLINE]
+    mov [B_ERRHDR], bx
+    mov bx, [B_STMT]
+    mov [B_ERRSTMT], bx
+    mov byte [B_INERR], 1
+    mov sp, [B_STMTSP]
+    mov word [B_TSP], 0
+    mov bx, [B_ONERR]
+    jmp b_goto_bx
+.report:
+    mov sp, B_STACK
     push ax
     call b_newline_if_needed
     pop ax
@@ -465,6 +602,22 @@ err_texts:
     db E_STRLONG, 'String too long', 0
     db E_COMPLEX, 'String formula too complex', 0
     db E_FEATURE, 'Feature not available', 0
+    db 10, 'Duplicate Definition', 0
+    db 18, 'Undefined user function', 0
+    db 19, 'No RESUME', 0
+    db 20, 'RESUME without error', 0
+    db 50, 'FIELD overflow', 0
+    db 52, 'Bad file number', 0
+    db 53, 'File not found', 0
+    db 54, 'File already open', 0
+    db 55, 'Input past end', 0
+    db 56, 'Bad file name', 0
+    db 60, 'File not OPEN', 0
+    db 61, 'Disk full', 0
+    db 63, 'Bad record number', 0
+    db 64, 'Disk I/O error', 0
+    db 26, 'WHILE without WEND', 0
+    db 30, 'WEND without WHILE', 0
     db 0
 
 ; ---------------------------------------------------------------- line input

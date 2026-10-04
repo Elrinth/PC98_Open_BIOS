@@ -90,6 +90,19 @@ A string variable's value is a descriptor `db length, db 0, dw pointer`
 `VARPTR(v,1)` the segment. Literals and DATA are copied into VSEG on
 assignment.
 
+Arrays are laid out as NEC's: the data of each array is a separate block
+that starts on a paragraph, the blocks follow each other in DIM order with
+no headers in between, and `VARPTR(a(i),1)` is the segment of the array's
+block (`VARPTR(a(i))` the offset in it). Programs rely on this: The Black
+Onyx BLOADs one file over nine arrays with `DEF SEG=VARPTR(H%(0),1):
+BLOAD "AllAry",0`. Here the headers stay with the simple variables and the
+blocks form one 16-aligned region in VSEG (moved up as variables are added).
+
+Graphics statements work in coordinates relative to the VIEW origin (VIEW
+SCREEN: absolute); SCREEN resets the view. `WIDTH 40` uses the hardware's
+40-column mode: character x is text cell 2x, and bytes 80h-9Fh/E0h-FFh are
+ANK characters (Shift-JIS is decoded in 80 columns only).
+
 ## Machine code
 
 | | |

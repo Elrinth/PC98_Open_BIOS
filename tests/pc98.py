@@ -420,7 +420,7 @@ class PC98:
         rom = Path(bootrom).read_bytes()
         self.font = rom[0x40000:0x40000 + 288768]
         # Conventional RAM, text VRAM (A0000-A3FFF incl. memory switches),
-        # CG window page (A4000-A4FFF), graphics VRAM A8000-BFFFF,
+        # CG window page (A4000-A4FFF), RAM A5000-A7FFF, graphics VRAM A8000-BFFFF,
         # extension ROM D0000-D7FFF, reserved RAM D8000-DFFFF, E0000-E7FFF VRAM,
         # BIOS E8000-FFFFF (read only). Extended RAM from 1 MB, hole at 15 MB.
         u.mem_map(0, 0xa0000)

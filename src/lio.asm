@@ -758,8 +758,23 @@ lio_ginit:
     mov word [LW_VY2], 399
     mov byte [LIO_PALMODE], 0
     xor al, al
+    out MODE_FF2, al               ; digital (8-colour) palette, as LIO_PALMODE says
+    call lio_set_all_digital
+    xor al, al
     xor dx, dx
     out GR_DRAW_PAGE, al
+    ret
+
+; Write all eight digital palette entries from LW_COLOR.
+lio_set_all_digital:
+    push bx
+    xor bx, bx
+.l:
+    call lio_set_digital
+    inc bx
+    cmp bx, 4
+    jb .l
+    pop bx
     ret
 
 ; A1 GSCREEN: DS:BX -> mode, sw, act, disp (FFh = unchanged).
@@ -1740,7 +1755,7 @@ P_SP            equ T4
 P_XL            equ T5
 P_XR            equ T6
 P_COL           equ T7            ; low: colour (FEh tile), high: border
-MARK_SEG        equ 0A400h
+P_MSEG          equ TB            ; tile PAINT: segment of the mark bitmap
 lio_gpaint1:
     mov si, [bp+L_BX]
     mov al, [si+4]
@@ -1783,20 +1798,35 @@ lio_gpaint2:
     mov [bp+P_END], ax
     mov ax, [si+18]
     mov [bp+P_START], ax
-    ; mark bitmap covers 204 lines of 640 pixels
+    ; mark bitmap (80 bytes per line of the view) at the top of the
+    ; caller's work area, paragraph aligned; the rest is the point stack
     mov ax, [bp+DV_Y2]
     sub ax, [bp+DV_Y1]
-    cmp ax, 204
-    jae lio_paint_bad
+    inc ax
+    imul cx, ax, 80
+    mov ax, [bp+P_END]
+    sub ax, cx
+    jb .nomem
+    and al, 0F0h
+    mov dx, ax
+    sub dx, [bp+P_START]
+    jb .nomem
+    cmp dx, 64
+    jb .nomem
+    mov [bp+P_END], ax
+    shr ax, 4
+    add ax, [bp+L_DS]
+    mov [bp+P_MSEG], ax
     push es
-    mov ax, MARK_SEG
     mov es, ax
     xor di, di
-    xor ax, ax
-    mov cx, 16320/2
-    rep stosw
+    xor al, al
+    rep stosb
     pop es
     jmp lio_paint
+.nomem:
+    mov al, LIO_NOMEM
+    ret
 
 lio_paint_bad:
     mov al, LIO_ILLEGAL
@@ -1843,8 +1873,7 @@ lio_mark_test:
     and cl, 7
     mov al, 80h
     shr al, cl
-    mov cx, MARK_SEG
-    mov es, cx
+    mov es, [bp+P_MSEG]
     test [es:bx], al
     pop es
     pop cx
@@ -1865,8 +1894,7 @@ lio_mark_set:
     and cl, 7
     mov al, 80h
     shr al, cl
-    mov cx, MARK_SEG
-    mov es, cx
+    mov es, [bp+P_MSEG]
     or [es:bx], al
     pop es
     pop cx

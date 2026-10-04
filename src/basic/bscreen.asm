@@ -7,7 +7,7 @@ TVRAM           equ 0A000h
 TATTR           equ 0A200h
 
 ; AL = character (control codes CR, LF, BS handled). Shift-JIS lead bytes
-; take the next call's byte as the trail byte.
+; take the next call's byte as the trail byte (80 columns only).
 b_putc:
     push ax
     push bx
@@ -22,8 +22,12 @@ b_putc:
     je .lf
     cmp al, 08h
     je .bs
+    cmp al, 20h
+    jb .ctrl
     cmp al, 81h
     jb .ank
+    cmp byte [B_WIDTH], 40          ; 40 columns: no kanji, 80h-FFh are ANK
+    je .ank
     cmp al, 9Fh
     jbe .lead
     cmp al, 0E0h
@@ -67,6 +71,51 @@ b_putc:
     cmp byte [B_CSRX], 0
     je .r
     dec byte [B_CSRX]
+    jmp .r
+.ctrl:                              ; console control codes
+    cmp al, 1Ch
+    je .right
+    cmp al, 1Dh
+    je .bs
+    cmp al, 1Eh
+    je .up
+    cmp al, 1Fh
+    je .down
+    cmp al, 0Bh
+    je .home
+    cmp al, 0Ch
+    je .clear
+    cmp al, 1Ah
+    je .clear
+    jmp .r                          ; other controls: nothing
+.right:
+    mov bl, [B_WIDTH]
+    dec bl
+    cmp [B_CSRX], bl
+    jae .r
+    inc byte [B_CSRX]
+    jmp .r
+.up:
+    mov bl, [B_SCRTOP]
+    cmp [B_CSRY], bl
+    jbe .r
+    dec byte [B_CSRY]
+    jmp .r
+.down:
+    mov bl, [B_SCRBOT]
+    dec bl
+    cmp [B_CSRY], bl
+    jae .r
+    inc byte [B_CSRY]
+    jmp .r
+.home:
+    mov byte [B_CSRX], 0
+    mov bl, [B_SCRTOP]
+    mov [B_CSRY], bl
+    jmp .r
+.clear:
+    call b_cls_text
+    jmp .r
 .r:
     pop es
     pop di
@@ -97,12 +146,16 @@ b_cell:
 .r:
     ret
 
-; DI = VRAM offset of the cursor.
+; DI = VRAM offset of the cursor (40 columns: the hardware shows the even cells).
 b_cursor_addr:
     movzx di, byte [B_CSRY]
     imul di, di, 160
     movzx bx, byte [B_CSRX]
     shl bx, 1
+    cmp byte [B_WIDTH], 40
+    jne .c
+    shl bx, 1                       ; 40 columns: every other cell
+.c:
     add di, bx
     ret
 
@@ -292,6 +345,23 @@ b_print_uint:
     ret
 
 ; AX signed -> " 123" / "-123" in B_NUMBUF: BX = text, CX = length.
+; FAC (number) -> text as PRINT shows it (sign or blank first): BX, CX.
+b_fmt_fac:
+    cmp byte [FAC_TYPE], VT_INT
+    jne .f
+    mov ax, [FAC_I]
+    jmp b_fmt_int
+.f:
+    mov eax, [FAC_I]
+    call f_format                   ; BX = F_OUT, CX
+    cmp byte [bx], '-'
+    je .r
+    dec bx
+    inc cx
+    mov byte [bx], ' '
+.r:
+    ret
+
 b_fmt_int:
     push ax
     test ax, ax
@@ -409,7 +479,10 @@ stmt_locate:
     je .c
     mov al, [B_ARGS+2]
     cmp al, [B_LINES]
-    jae err_func
+    jb .yok
+    mov al, [B_LINES]               ; (N88 takes LOCATE x,25: the last line)
+    dec al
+.yok:
     mov [B_CSRY], al
 .c:
     cmp byte [B_ARGN+2], 0
@@ -424,6 +497,8 @@ stmt_color:
     call b_skipsp
     cmp al, T_EQ
     je .palette
+    cmp al, '@'
+    je stmt_color_at
     call b_args
     cmp byte [B_ARGN], 0
     je .lio
@@ -493,7 +568,7 @@ stmt_screen:
     int 0A1h                        ; LIO GSCREEN
     test ah, ah
     jnz err_func
-    jmp stmt_end
+    jmp g_view_full
 
 ; CONSOLE first line, lines, function keys, colour
 stmt_console:

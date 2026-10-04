@@ -35,7 +35,7 @@ Survey of `L:\dev\Zet98_Improved_Core\PC98_MiSTer` (2026-09-26). ZM =
 | 94h/CCh write | FDC control | bit 7 reset, **bit 6 FRY (READY forced low when 0)**, bit 3 motor, bit 2 timer IRQ enable, bit 0 100 ms one-shot IRQ. Status bit 4 unreliable. |
 | BEh | FDC interface | bit 0 interface (1 = 1 MB), bit 1 HD. Reads 08h after reset. |
 | A0h/A2h | graphics GDC | status bit 7 always 1. MASK (4Ah) not decoded. SYNC ignored. |
-| A1h/A3h/A5h/A9h | CG window | A1h = JIS 2nd byte, A3h = 1st byte - 20h (ANK: A1h = 0, A3h = code); A5h bits 3-0 line, bit 5 = 1 left half. A9h read/write (writes reach any glyph). **No CG memory window at A4000h.** |
+| A1h/A3h/A5h/A9h | CG window | A1h = JIS 2nd byte, A3h = 1st byte - 20h (ANK: A1h = 0, A3h = code); A5h bits 3-0 line, bit 5 = 1 left half. A9h read/write (writes reach any glyph). CG memory window at A4000h-A4FFFh (pattern of the A1h/A3h code; line = address bits 4-1, even/odd byte = left/right half; writes go to the font RAM like A9h). |
 | A4h/A6h | display / draw page | |
 | A8h-AEh | palette | digital: A8h 7/3, AAh 5/1, ACh 6/2, AEh 4/0 (identity at reset). Analog (6Ah = 01h): A8h index, AAh G, ACh R, AEh B; **analog entries reset to black**. |
 | 430h/432h, 640h-64Eh, 74Ch/74Eh | ATA (`-RawIde`) | IRQ9 (slave IR1). |
@@ -67,7 +67,7 @@ IR4 OPNA/PCM86, IR5 mouse.
   odd bytes read FFh); A3FE0h-A3FFFh memory switches (index = A4..A2, low
   lane, write only with 68h = 0Dh). Core-load defaults: 4Ch 68h 04h 00h 01h
   08h, MSW7/MSW8 uninitialised; not reset by OSD reset, not saved.
-- A4000h-A7FFFh plain RAM. Graphics planes A8000h/B0000h/B8000h/E0000h.
+- A4000h-A4FFFh CG window (not RAM), A5000h-A7FFFh plain RAM. Graphics planes A8000h/B0000h/B8000h/E0000h.
 - C0000h-CBFFFh: three "EMS" windows alias one 16 KiB.
 - D0000h-D1FFFh disk ROM (`-RawIde`), D2000h-DFFFFh RAM (disk ROM uses
   D8000h-DFFFFh).

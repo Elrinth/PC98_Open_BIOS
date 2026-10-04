@@ -42,9 +42,9 @@ B_STMT          equ W+0Eh       ; start of the current statement
 FAC_TYPE        equ W+10h       ; 2 integer, 3 string
 FAC_I           equ W+12h       ; integer, or string length
 FAC_P           equ W+14h       ; string pointer (segment FAC_SEG)
-B_CSRX          equ W+16h
-B_CSRY          equ W+17h
-B_TATTR         equ W+18h       ; text attribute for PRINT
+B_CSRX          equ 0438h       ; [if] cursor column (word; machine code reads it)
+B_CSRY          equ 0436h       ; [if] cursor line (word)
+B_TATTR         equ 043Ah       ; [if] text attribute for PRINT (word)
 B_WIDTH         equ W+19h       ; columns
 B_SCRTOP        equ W+1Ah       ; console: first line
 B_SCRBOT        equ W+1Bh       ; console: last line + 1
@@ -68,7 +68,73 @@ B_TSTK_N        equ 8
 B_VSEG          equ W+0F0h      ; variable/string segment
 B_STRTOP        equ W+0F2h      ; string space top (VSEG offset)
 FAC_SEG         equ W+0F4h
-W_END           equ W+100h
+B_FBUF          equ W+0F6h      ; file buffers #1-#4 (VSEG), string space ends here
+B_ARYEND        equ W+0F8h      ; arrays from B_VAREND to here
+B_ONERR         equ W+0FAh      ; ON ERROR GOTO: line header, 0 = none
+B_ERRNO         equ W+0FCh      ; ERR
+B_INERR         equ W+0FDh      ; 1 while an error handler runs
+B_ERRLINE       equ W+100h      ; ERL
+B_ERRHDR        equ W+102h      ; RESUME: line header of the failed statement
+B_ERRSTMT       equ W+104h      ; RESUME: start of the failed statement
+B_STMTSP        equ W+106h      ; SP at the start of the current statement
+B_KEYSTR        equ W+108h      ; reserved
+B_SUBS          equ W+110h      ; 8 words: array subscripts
+B_DIMS          equ W+120h      ; 8 words: DIM bounds / counts
+B_USRDESC       equ W+130h      ; USR string argument: db len, db flag, dw ptr
+B_USRFAR        equ W+134h      ; far pointer to B_USRDESC (what BX points to)
+B_ISEG          equ W+138h      ; INSTR: segment of the searched string
+B_USRVAR        equ W+13Ah      ; USR argument: VSEG offset of a lone string variable
+F_SA            equ W+13Ch      ; float: sign temporary
+F_NEG           equ W+13Dh
+F_SEED          equ W+140h      ; RND state (dword)
+F_LAST          equ W+144h      ; last RND value (dword)
+F_MANT          equ W+148h      ; parse: mantissa (dword)
+F_EXP10         equ W+14Ch      ; parse: decimal exponent
+F_K             equ W+14Eh      ; format: decimal exponent
+F_ISF           equ W+150h      ; parse: had a point or exponent
+F_DIG           equ W+152h      ; format: 8 digit bytes
+F_OUT           equ W+160h      ; format output (32 bytes)
+B_LEFTHI        equ W+180h      ; expression: high word of the left operand
+B_LEFTLO        equ W+182h      ; expression: left integer (overflow retry)
+B_VALBUF        equ W+190h      ; VAL/READ: copy of the number text (40 bytes)
+B_FLIM          equ W+1C0h      ; FOR: limit (dword)
+B_FSTEP         equ W+1C4h      ; FOR: step (dword)
+B_FTYPE         equ W+1C8h      ; FOR: variable type
+B_FNCNT         equ W+1CAh      ; DEF FN: functions defined
+B_FNSIZE        equ W+1CCh
+B_FNTYPE        equ W+1CEh
+B_FNTAB         equ W+1D0h      ; 16 words: text pointers of DEF FN names
+B_ADATA         equ W+1F0h      ; array data region (VSEG, 16-aligned) ...
+B_ADEND         equ W+1F2h      ; ... and its end (16-aligned)
+B_ARRBASE       equ W+1F4h      ; b_getarr: data start of the array
+B_ISARR         equ W+1F6h      ; b_getvar: 1 when the variable is an array element
+B_MKTYPE        equ W+1F7h
+B_MKNAME        equ W+1F8h
+B_INPTR         equ W+1FAh      ; INPUT: next item in the line buffer
+B_INMORE        equ W+1FCh      ; INPUT: routine refilling the buffer, 0 none
+B_INQ           equ W+1FEh      ; INPUT: print "? "
+W_END           equ W+200h
+
+; graphics statements (bgfx.asm)
+G_PB            equ 1300h       ; 32 bytes: LIO parameter block
+G_LX            equ 1320h       ; last point (view coordinates)
+G_LY            equ 1322h
+G_OX            equ 1324h       ; VIEW origin (screen coordinates)
+G_OY            equ 1326h
+G_ASP           equ 1328h       ; CIRCLE aspect (single)
+G_LWFG          equ 0623h       ; LIO foreground colour
+; PRINT USING (bio.asm)
+G_USELEN        equ 132Ch       ; format length
+G_USEANY        equ 132Eh       ; a field was used in this pass
+G_UPLUS         equ 1330h       ; number field: '+', ',', integer positions,
+G_UCOMMA        equ 1331h       ; decimals, point
+G_UINT          equ 1332h
+G_UDEC          equ 1333h
+G_UPT           equ 1334h
+G_NUMBUF        equ 1340h       ; 32 bytes
+G_USEBUF        equ 1360h       ; 64 bytes: copy of the format
+B_FLINE         equ 13A0h       ; 96 bytes: INPUT # line buffer
+B_INFCB         equ 1336h       ; INPUT #: control block
 
 ; value types
 VT_INT          equ 2
@@ -92,3 +158,5 @@ E_STRSPACE      equ 14
 E_STRLONG       equ 15
 E_COMPLEX       equ 16          ; String formula too complex
 E_FEATURE       equ 73          ; Advanced feature (not implemented here)
+E_NORESUME      equ 19
+E_RESUME        equ 20          ; RESUME without error

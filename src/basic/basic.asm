@@ -10,4 +10,8 @@
 %include "basic/bstmt.asm"
 %include "basic/bscreen.asm"
 %include "basic/bsvc.asm"
+%include "basic/bfile.asm"
+%include "basic/bfloat.asm"
+%include "basic/bgfx.asm"
+%include "basic/bio.asm"
 %include "basic/kwtable.inc"

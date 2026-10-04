@@ -301,16 +301,39 @@ fd_now:
 ; Wait for the FDC interrupt (end of command or seek). With DMA active,
 ; stop the channel as soon as it reaches terminal count so that a partial
 ; last sector cannot run past the buffer. CF=1 after about 3 s.
+; The wait runs with CPU interrupts enabled, as on NEC machines: games play
+; music from the timer and sound interrupts while they load (with the wait
+; under CLI, Metal Orange's intro music stalled at every disk access). The
+; command has ended when int13_fdd_irq/int12_fdd_irq set their DISK_INTL/
+; DISK_INTH flag, or - called from an ISR, when the 8259 cannot deliver the
+; FDC interrupt - when its IRR bit is latched. Interrupts are disabled again
+; on return.
 fd_wait_irq:
     push bx
     push cx
     push dx
     push si
+    push di
     call fd_irq_bit
     mov dl, ah
+    mov di, DISK_INTL              ; flag of the 1 MB interface's interrupt
+    mov dh, 0Fh
+    test byte [bp+L_TYPE], 01h
+    jnz .flag
+    mov di, DISK_INTH              ; 640 KB interface
+    mov dh, 0F0h
+.flag:
+    push ds
+    xor ax, ax
+    mov ds, ax
+    mov al, dh
+    not al
+    and [di], al                   ; interrupts are still disabled here
+    pop ds
     mov si, 16                     ; 16 windows of ~200 ms
     call fd_now
     mov bx, ax
+    sti
 .poll:
     cmp byte [bp+L_DMA], 0
     je .irr
@@ -325,12 +348,21 @@ fd_wait_irq:
     out 15h, al                    ; TC: stop the channel
     mov byte [bp+L_DMA], 2         ; 2: stopped at terminal count
 .irr:
+    push ds
+    xor ax, ax
+    mov ds, ax
+    test [di], dh                  ; taken by the FDC interrupt handler
+    pop ds
+    jnz .irq
+    cli                            ; OCW3 + read as one unit
     mov al, 0Ah                    ; OCW3: read IRR
     out PIC_S0, al
     out CPU_RESET_WAIT, al
     in al, PIC_S0
+    sti
     test al, dl
     jz .time
+.irq:
     ; A data command must also be in its result phase (RQM, DIO, CB);
     ; seeks have no result phase.
     cmp byte [bp+L_SEEK], 0
@@ -351,11 +383,14 @@ fd_wait_irq:
     mov bx, ax
     dec si
     jnz .poll
+    cli
     stc
     jmp .done
 .ok:
+    cli
     clc
 .done:
+    pop di
     pop si
     pop dx
     pop cx

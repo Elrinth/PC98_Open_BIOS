@@ -1,0 +1,17 @@
+name: Build SD-card bundle after OpenBIOS release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      bios:
+        description: OpenBIOS release tag (or latest)
+        default: latest
+permissions:
+  contents: write
+jobs:
+  bundle:
+    if: ${{ !github.event.release.prerelease }}
+    uses: Elrinth/Zet98_486_MiSTer/.github/workflows/sd-bundle.yml@main
+    with:
+      bios: ${{ github.event.release.tag_name || inputs.bios || 'latest' }}

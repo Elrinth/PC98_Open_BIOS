@@ -46,3 +46,25 @@ The owner `boot.rom` does not yet POST in `tests/pc98.py` (its self-test
 depends on hardware details the model does not emulate, such as the ITF bank
 and PIT read-back timing). On the MiSTer, compare behaviour by swapping the
 two `boot.rom` files. Never commit anything derived from the owner ROM.
+
+## Zatsugaku Olympics compatibility � 2026-10-06 (release 2026-10-06)
+
+The private NFD was converted to D88 without conversion warnings. The original
+image is unchanged. The D88 boots with the current
+`PC98_Z486_90_RAM_DWORD_COMPACT.rbf` core and the candidate OpenBIOS, reaching
+the opening, Japanese instructions, quiz questions/choices and picture reveal.
+This is an early-game compatibility check, not a complete playthrough.
+
+The initial apparent pause at question drawing was BASIC treating `<>` as `>`:
+the game paused and cleared text after each character instead of after a line.
+The comparison parser now combines both operator bits. No FPGA change was
+needed. A temporary BASIC line overlay used to diagnose this was removed.
+
+All eight BIOS test suites passed before the final comparison/CALL refinements;
+the complete BASIC suite passed again afterwards, including the new functional
+regressions and Hokuto no Ken's menu/prologue.
+
+Final `boot.rom` SHA-256:
+`d318ff406d5ab76d306e84c415ab82971b4b83b132758e15cfa6e692dd9021ce`.
+The previous MiSTer BIOS was retained as
+`/media/fat/games/PC98/boot.rom.before-zatsugaku-20261006`.

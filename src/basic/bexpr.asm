@@ -101,18 +101,20 @@ op_info:
     stc
     ret
 .rel:
+    push dx
     call .relbit
-    mov ah, al
+    mov dl, al                     ; .relbit uses AH; preserve the first mask
     mov al, [si+1]
     cmp al, T_GT
     jb .rel1
     cmp al, T_LT
     ja .rel1
     call .relbit
-    or ah, al
+    or dl, al
     inc cx
 .rel1:
-    mov al, ah
+    mov al, dl
+    pop dx
     or al, OP_REL
     mov ah, P_REL
     clc
@@ -742,6 +744,10 @@ eval_function:
     jmp [cs:bx+1]
 
 func_table:
+    db F_TIME_S
+    dw fn_time
+    db F_DATE_S
+    dw fn_date
     db F_ABS
     dw fn_abs
     db F_SGN
@@ -1291,6 +1297,57 @@ fn_varptr:
     call b_expect
     pop ax
     jmp fac_set_int
+
+; Calendar strings are read through the BIOS, then copied into BASIC string
+; space so nested expressions retain their values. DATE$ is YY/MM/DD.
+fn_time:
+    call fn_calendar
+    mov al, [B_NUMBUF+3]
+    call fn_bcd_pair
+    mov al, ':'
+    stosb
+    mov al, [B_NUMBUF+4]
+    call fn_bcd_pair
+    mov al, ':'
+    stosb
+    mov al, [B_NUMBUF+5]
+    call fn_bcd_pair
+    jmp fn_calendar_string
+fn_date:
+    call fn_calendar
+    mov al, [B_NUMBUF]
+    call fn_bcd_pair
+    mov al, '/'
+    stosb
+    mov al, [B_NUMBUF+1]
+    shr al, 4                       ; month is binary, not packed BCD
+    aam
+    add ax, 3030h
+    xchg al, ah
+    stosw
+    mov al, '/'
+    stosb
+    mov al, [B_NUMBUF+2]
+    call fn_bcd_pair
+fn_calendar_string:
+    mov bx, B_VALBUF
+    mov cx, 8
+    jmp fn_copy_buf
+fn_calendar:
+    push ds
+    pop es
+    mov bx, B_NUMBUF
+    xor ah, ah
+    int 1Ch
+    mov di, B_VALBUF
+    ret
+fn_bcd_pair:
+    mov ah, al
+    shr al, 4
+    and ah, 0Fh
+    add ax, 3030h
+    stosw
+    ret
 
 ; INKEY$: next key without waiting, "" when none.
 fn_inkey:

@@ -1,4 +1,5 @@
 ; Text console for PRINT and the screen statements.
+; Disk BASIC uses ESC K / ESC H with JIS bytes; other high bytes are ANK.
 ; Characters go straight to text VRAM (A000h codes, A200h attributes); the
 ; console scrolls between B_SCRTOP and B_SCRBOT (CONSOLE). Graphics
 ; statements use LIO with DS = BSEG, so LIO keeps its state at BSEG:0620h.
@@ -14,7 +15,11 @@ b_putc:
     push cx
     push di
     push es
-    cmp byte [B_SJIS], 0
+    cmp byte [B_ESC], 0
+    jne .escape_code
+    cmp al, 1Bh
+    je .escape
+    cmp byte [B_JISLEAD], 0
     jne .trail
     cmp al, 0Dh
     je .cr
@@ -24,28 +29,37 @@ b_putc:
     je .bs
     cmp al, 20h
     jb .ctrl
-    cmp al, 81h
-    jb .ank
-    cmp byte [B_WIDTH], 40          ; 40 columns: no kanji, 80h-FFh are ANK
+    cmp byte [B_JISMODE], 0
     je .ank
-    cmp al, 9Fh
-    jbe .lead
-    cmp al, 0E0h
+    cmp al, 21h
     jb .ank
-    cmp al, 0FCh
+    cmp al, 7Eh
     ja .ank
-.lead:
-    mov [B_SJIS], al
+    mov [B_JISLEAD], al
+    jmp .r
+.escape:
+    mov byte [B_ESC], 1
+    mov byte [B_JISLEAD], 0
+    jmp .r
+.escape_code:
+    mov byte [B_ESC], 0
+    cmp al, 'K'
+    je .kanji
+    cmp al, 'H'
+    jne .r
+    mov byte [B_JISMODE], 0
+    jmp .r
+.kanji:
+    mov byte [B_JISMODE], 1
     jmp .r
 .ank:
     xor ah, ah
     call b_cell
     jmp .r
 .trail:
-    mov ah, al                      ; Shift-JIS -> JIS -> two text cells
-    mov al, [B_SJIS]
-    mov byte [B_SJIS], 0
-    call b_sjis_jis                 ; AH:AL = JIS row:cell
+    mov ah, al
+    mov al, [B_JISLEAD]
+    mov byte [B_JISLEAD], 0
     sub al, 20h                     ; VRAM: low = row - 20h, high = cell
     push ax
     mov bl, [B_WIDTH]
@@ -157,27 +171,6 @@ b_cursor_addr:
     shl bx, 1                       ; 40 columns: every other cell
 .c:
     add di, bx
-    ret
-
-; Shift-JIS AL (lead), AH (trail) -> AL = JIS row, AH = JIS cell.
-b_sjis_jis:
-    cmp al, 0E0h
-    jb .lo
-    sub al, 40h
-.lo:
-    sub al, 70h
-    shl al, 1                       ; 81h-9Fh -> 22h.. pairs
-    cmp ah, 9Fh
-    jae .second
-    dec al
-    cmp ah, 7Fh
-    jb .t1
-    dec ah
-.t1:
-    sub ah, 1Fh
-    ret
-.second:
-    sub ah, 7Eh
     ret
 
 b_newline:
@@ -402,7 +395,14 @@ b_fmt_uint:
 ; ---------------------------------------------------------------- statements
 ; Statement arguments: up to 8 optional integers separated by commas.
 ; B_ARGS[i] = value, B_ARGN[i] = 1 when given. CX = count read.
+b_args_uint:
+    push bp
+    mov bp, b_eval_uint
+    jmp b_args_common
 b_args:
+    push bp
+    mov bp, b_eval_int
+b_args_common:
     push di
     mov di, B_ARGN
     xor ax, ax
@@ -416,7 +416,9 @@ b_args:
     cmp al, ','
     je .empty
     push cx
-    call b_eval_int
+    push bp
+    call bp
+    pop bp
     pop cx
     mov bx, cx
     mov byte [B_ARGN+bx], 1
@@ -432,6 +434,7 @@ b_args:
     jb .next
 .done:
     pop di
+    pop bp
     ret
 
 ; B_ARGS[BX] as a byte, FFh when not given -> AL

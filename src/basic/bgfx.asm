@@ -416,6 +416,70 @@ g_array:
     pop es
     ret
 
+; GET @[STEP](x1,y1)-[STEP](x2,y2),array
+stmt_get_at:
+    inc si
+    call g_coord
+    push cx
+    push dx
+    mov ah, T_MINUS
+    call b_expect
+    call g_coord
+    mov [G_PB+4], cx
+    mov [G_PB+6], dx
+    pop word [G_PB+2]
+    pop word [G_PB]
+    mov ah, ','
+    call b_expect
+    call g_array
+    mov [G_PB+8], bx
+    call g_array_room
+    mov [G_PB+12], cx
+    mov ax, [B_VSEG]
+    mov [G_PB+10], ax
+    mov bx, G_PB
+    int 0ABh
+    call g_status
+    jmp stmt_end
+
+; BX is an array element. CX = bytes remaining in that array, excluding
+; alignment padding and following arrays; a screen capture must not overwrite
+; unrelated variables. Header walking also covers a subscripted array argument.
+g_array_room:
+    push si
+    push di
+    push es
+    mov es, [B_VSEG]
+    mov si, [B_VAREND]
+.next:
+    cmp si, [B_ARYEND]
+    jae err_func
+    movzx di, byte [es:si+1]
+    add di, si
+    add di, 2
+    mov dx, [es:di]                 ; header length
+    movzx cx, byte [es:di+2]
+    shl cx, 1
+    add di, cx
+    mov ax, [es:di+3]
+    add ax, [B_ADATA]
+    cmp bx, ax
+    jb .skip
+    mov cx, [es:di+5]
+    add cx, ax
+    cmp bx, cx
+    jae .skip
+    cmp byte [es:si], VT_STR
+    je err_type
+    sub cx, bx
+    pop es
+    pop di
+    pop si
+    ret
+.skip:
+    add si, dx
+    jmp .next
+
 ; PUT @[STEP](x,y),array[,PSET|PRESET|OR|AND|XOR]
 stmt_put_at:
     inc si                          ; '@'

@@ -12,6 +12,12 @@ core fix. Cyberblock Metal Orange reaches New Start with smooth music during
 loading; Hokuto no Ken's N88-BASIC title and interactive story scenes run.
 Use release **2026-10-04.1** with B240 for the Policenauts floppy DMA fix.
 
+**Release [2026-10-06](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-06):** Zatsugaku Olympics compatibility adds BASIC
+memory-ceiling reporting, unsigned CLEAR addresses, TIME$/DATE$, GET@,
+CALL arguments, disk-BASIC JIS text, and compound-comparison fixes. The
+converted floppy reaches the quiz on MiSTer; validation covers startup and
+early gameplay, not a complete playthrough. See [N88-BASIC notes](docs/N88BASIC.md).
+
 Earlier checks include MS-DOS 6.20 from VHD, Rusty, Flame Zapper Kotsujin,
 E.V.O. (LIO; the MS-DOS 3.30 hard-disk version too), Black Thorne, Nightslave
 and Lemmings. See the core's
@@ -40,7 +46,7 @@ and Lemmings. See the core's
 | INT 19h/1Ah | RS-232C control-block API, printer (NEC layout, including MS-DOS's vector+19h shortcut) |
 | INT 1Fh | 90h extended-memory block move, 91h switch to protected mode |
 | INT A0h-AFh | **LIO graphics BIOS**: GINIT, GSCREEN, GVIEW, GCOLOR1/2, GCLS, GPSET, GLINE (styles, boxes, tiles), GCIRCLE (ellipses, arcs, fills), GPAINT1/2, GGET, GPUT1/2, GROLL, GPOINT2 |
-| N88-BASIC(86) | **own disk BASIC runtime** for disk BASIC software: start-up protocol with the disk's BASIC module, program text and token format, direct mode, integer/single-precision expressions and strings, variables and arrays in NEC's segment layout, CALL/USR, DEF FN, control flow (WHILE, labels, ON ERROR/RESUME), DATA/READ, INPUT, PRINT [USING], screen statements, graphics statements through LIO (LINE, PSET, CIRCLE, PAINT, VIEW, POINT, PUT@, COLOR@), BEEP, its own N88 floppy file system (RUN/LOAD/BLOAD "file", random and sequential files, KILL, DSKI$)... ([docs/N88BASIC.md](docs/N88BASIC.md)); runs Hokuto no Ken, Asteka and The Black Onyx |
+| N88-BASIC(86) | **own disk BASIC runtime** for disk BASIC software: start-up protocol with the disk's BASIC module, program text and token format, direct mode, integer/single-precision expressions and strings, variables and arrays in NEC's segment layout, CALL/USR, DEF FN, control flow (WHILE, labels, ON ERROR/RESUME), DATA/READ, INPUT, PRINT [USING], screen statements, graphics statements through LIO (LINE, PSET, CIRCLE, PAINT, VIEW, POINT, GET@/PUT@, COLOR@), BEEP, its own N88 floppy file system (RUN/LOAD/BLOAD "file", random and sequential files, KILL, DSKI$)... ([docs/N88BASIC.md](docs/N88BASIC.md)); runs Hokuto no Ken, Asteka and The Black Onyx |
 | Fixed addresses | FD80:0000 reset, FD80:091E restart, FD80:0E00 key tables, F8E8:0000 PC-9821 feature table, FFFF0h reset vector ([details](docs/FIXED_ADDRESSES.md)) |
 
 Character generator: a free font built from the public-domain Shinonome
@@ -52,7 +58,7 @@ lines, port 09A8h): `docs/core-480line.patch`, branch `open-bios-480line` in
 the core repository (see its `rtl/LINES480.md`). Without it the BIOS refuses
 INT 18h AH=30h, as on a machine without 31 kHz support.
 
-Not included yet: N88-BASIC double precision, SAVE/BSAVE, DRAW/WINDOW/GET@, sound statements other than BEEP; ROM BASIC without a disk; a sound-board BIOS (INT D2h), mouse BIOS, SCSI.
+Not included yet: N88-BASIC double precision, SAVE/BSAVE, DRAW/WINDOW, sound statements other than BEEP; ROM BASIC without a disk; a sound-board BIOS (INT D2h), mouse BIOS, SCSI.
 
 ## Layout
 

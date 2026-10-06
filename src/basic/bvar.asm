@@ -51,9 +51,9 @@ b_parse_name:
 
 b_getvar_named:
     cmp byte [si], '('
-    jne .simple
+    jne b_getsimple
     jmp b_getarr                    ; DX = name, CX = name size, AH = type
-.simple:
+b_getsimple:
     mov byte [B_ISARR], 0
     ; Entries in NEC's sizes (machine code computes variable addresses from
     ; [VSEG:0002]): db first letter, db 0 (NEC: chain link), db type,

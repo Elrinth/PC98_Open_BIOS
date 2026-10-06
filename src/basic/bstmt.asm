@@ -1047,27 +1047,114 @@ stmt_out:
     out dx, al
     jmp stmt_end
 
-; CALL variable: machine code at DEF SEG:value through INT C3h.
+; CALL scalar[(variables)]: argument pointers are in reverse order.
 stmt_call:
     call b_skipsp
-    push si
-    call b_getvar                   ; (checks it is a variable)
-    pop si
+    call b_parse_name
+    call b_getsimple                ; parentheses belong to CALL, not the target
     cmp al, VT_STR
     je err_type
-    call eval_atom                  ; its value as FAC
+    cmp al, VT_INT
+    je .integer
+    cmp al, VT_DBL
+    jne .single
+    add bx, 4
+.single:
+    mov eax, [fs:bx]
+    call fac_set_sng
+    jmp .address
+.integer:
+    mov ax, [fs:bx]
+    call fac_set_int
+.address:
     call fac_uint
+    mov [B_CALLTARGET], ax
     mov dx, [B_DEFSEG]
-    call b_call_c3
+    mov [B_CALLTARGET+2], dx
+    push ax
     call b_skipsp
     cmp al, '('
-    jne stmt_end
-    jmp err_feature                 ; CALL with arguments
+    pop ax
+    je .args
+    call b_call_c3
+    jmp stmt_end
+.args:
+    inc si
+    xor cx, cx
+.first:
+    cmp cx, 16
+    jae err_func
+    push cx
+    call b_getvar
+    pop cx
+    mov di, cx
+    shl di, 2
+    mov ax, [B_VSEG]
+    cmp byte [B_ISARR], 0
+    je .pointer
+    sub bx, [B_ADATA]               ; later scalars can relocate array storage
+    xor ax, ax                     ; mark this as an array-relative pointer
+.pointer:
+    mov [B_CALLARGS+di], bx
+    mov [B_CALLARGS+di+2], ax
+    inc cx
+    call b_skipsp
+    inc si
+    cmp al, ','
+    je .first
+    cmp al, ')'
+    jne err_syntax
+    mov [B_CALLCOUNT], cx
+    push si
+    mov di, B_CALLARGS
+.resolve:
+    cmp word [di+2], 0
+    jne .resolved
+    mov ax, [B_ADATA]
+    add [di], ax
+    mov ax, [B_VSEG]
+    mov [di+2], ax
+.resolved:
+    add di, 4
+    loop .resolve
+    ; Reverse the completed table without evaluating any subscript twice.
+    sub di, 4
+    mov bx, B_CALLARGS
+.reverse:
+    cmp bx, di
+    jae .ready
+    mov eax, [bx]
+    xchg eax, [di]
+    mov [bx], eax
+    add bx, 4
+    sub di, 4
+    jmp .reverse
+.ready:
+    xor ax, ax
+    mov es, ax
+    mov eax, [B_CALLTARGET]
+    pushf
+    cli
+    mov [es:0C3h*4], eax
+    popf
+    push ds
+    pop es
+    push bp
+    mov bx, B_CALLARGS
+    mov ax, [B_CALLCOUNT]
+    mov cx, ds
+    mov dx, [B_VSEG]
+    int 0C3h
+    call b_ds_es
+    cld
+    pop bp
+    pop si
+    jmp stmt_end
 
 ; ---------------------------------------------------------------- program control
 ; CLEAR [string space][,top of the data area (VSEG offset)[,stack]]
 stmt_clear:
-    call b_args
+    call b_args_uint
     cmp byte [B_ARGN+1], 0
     je .keep
     mov ax, [B_ARGS+2]

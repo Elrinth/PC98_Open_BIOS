@@ -1087,7 +1087,7 @@ stmt_get_tok:
     cmp al, '('
     je err_feature
     cmp al, '@'
-    je err_feature
+    je stmt_get_at
     jmp stmt_get
 stmt_put_tok:
     call b_skipsp

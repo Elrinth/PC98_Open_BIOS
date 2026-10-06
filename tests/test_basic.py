@@ -32,7 +32,10 @@ SHIFTED = {'!': 0x01, '"': 0x02, '#': 0x03, '$': 0x04, '%': 0x05, '&': 0x06, "'"
 
 def type_text(m, text):
     for ch in text:
-        if ch in SHIFTED:
+        if 'A' <= ch <= 'Z':
+            code = PLAIN[ch.lower()]
+            m.type_keys([0x70, code, code | 0x80, 0xF0])
+        elif ch in SHIFTED:
             code = SHIFTED[ch]
             m.type_keys([0x70, code, code | 0x80, 0xF0])
         else:
@@ -97,6 +100,84 @@ def test_direct():
     check('tokeniser matches NEC', body == nec, body.hex(' '))
 
 
+def test_memory_and_calendar():
+    import datetime
+    m = basic_direct()
+    check('BASIC publishes conventional RAM ceiling', word(m, 0x600 + 0x1402) == 0xA000)
+    type_text(m, 'def seg=&h60:m=(peek(&h1402)+peek(&h1403)*256)-&h800:clear ,m\n')
+    type_text(m, 'print "clear-ok"\n')
+    screen = m.text_screen()
+    check('CLEAR accepts a calculated unsigned address', 'Overflow' not in screen and
+          'clear-ok' in screen and word(m, 0x600 + 0xBF2) == 0x9800, screen)
+    m.rtc.base = datetime.datetime(2026, 12, 31, 23, 45, 0)
+    m.rtc.offset = -m.now
+    type_text(m, 'print date$;" ";left$(time$,5)\n')
+    check('DATE$ handles month 12 and TIME$ uses the RTC',
+          '26/12/31 23:45' in m.text_screen(), m.text_screen())
+    type_text(m, 'print val(mid$(time$,4,2))*60+val(mid$(time$,7,2))\n')
+    type_text(m, 'print val(mid$(date$,4,2))*60+val(right$(date$,2))\n')
+    check('calendar strings compose inside expressions', ' 751' in m.text_screen(), m.text_screen())
+
+
+def test_get_graphics():
+    m = basic_direct()
+    type_text(m, 'screen 0:dim a%(100),b%(1):b%(0)=1234\n')
+    type_text(m, 'line (0,0)-(7,7),3,bf:get@(0,0)-(7,7),a%\n')
+    type_text(m, 'cls 1:put@(16,16),a%,pset:print point(16,16);point(23,23);b%(0)\n')
+    screen = m.text_screen()
+    check('GET@ and PUT@ preserve a colour rectangle', ' 3  3  1234' in screen, screen)
+    type_text(m, 'get@(0,0)-(7,7),a%(10):put@(32,16),a%(10),pset\n')
+    check('GET@ accepts a subscripted destination', 'Illegal function call' not in m.text_screen())
+    type_text(m, 'get@(0,0)-(639,399),b%\n')
+    screen = m.text_screen()
+    check('GET@ rejects a destination array that is too small', 'Illegal function call' in screen, screen)
+    type_text(m, 'print b%(0)\n')
+    check('rejected GET@ leaves array contents intact', m.text_screen().count('1234') >= 2, m.text_screen())
+
+
+def test_call_arguments():
+    m = basic_direct()
+    # Synthetic IRET routine: add LEN(rightmost string)+1 to the left integer.
+    # push es; les di,[bx]; mov al,es:[di]; xor ah,ah; inc ax;
+    # les di,[bx+4]; add es:[di],ax; pop es; iret.
+    m.u.mem_write(0x80000, bytes.fromhex('06 c4 3f 26 8a 05 30 e4 40 c4 7f 04 26 01 05 07 cf'))
+    type_text(m, 'def seg=&h8000:r%=0:x%=10:s$="abc":call r%(x%,s$):print x%\n')
+    screen = m.text_screen()
+    check('CALL passes numeric and string variables by reference', ' 14' in screen, screen)
+    type_text(m, 'dim a%(2):a%(0)=42:call r%(a%(0),zz$):print a%(0)\n')
+    screen = m.text_screen()
+    check('CALL keeps array pointers valid when later arguments create variables', ' 43' in screen, screen)
+    m.u.mem_write(0x1240, bytes(4))  # F_SEED: reset the deterministic RND generator
+    type_text(m, 'call r%(a%(rnd(1)*0),s$)\n')
+    check('CALL evaluates an array subscript only once',
+          struct.unpack('<I', m.mem(0x1240, 4))[0] == 2531011)
+
+
+
+def test_disk_character_encoding():
+    m = basic_direct()
+    type_text(m, 'cls:print chr$(&h87);chr$(&h87);\n')
+    check('disk BASIC keeps block graphics as single-byte characters',
+          bytes(m.mem(0xA0000, 4)) == bytes.fromhex('87 00 87 00'))
+    type_text(m, 'cls:print chr$(27);"K";"4A;z";chr$(27);"H";"x";\n')
+    check('ESC K/H selects JIS kanji and returns to ANK',
+          bytes(m.mem(0xA0000, 10)) == bytes.fromhex('14 41 94 41 1b 7a 9b 7a 78 00'),
+          bytes(m.mem(0xA0000, 10)).hex())
+
+
+def test_compound_comparisons():
+    m = basic_direct()
+    type_text(m, 'print 1<>59;59<>1;1<>1;1<=2;2<=2;3<=2\n')
+    check('compound integer comparisons preserve both operators',
+          '-1 -1  0 -1 -1  0' in m.text_screen(), m.text_screen())
+    type_text(m, 'print 3>=2;2>=2;1>=2;(3/2)<>2;(3/2)<=2;(5/2)>=2\n')
+    check('compound comparisons also handle single precision',
+          '-1 -1  0 -1 -1 -1' in m.text_screen(), m.text_screen())
+    type_text(m, 'print 1<>59 or len("abc")=60;"a"<>"b";"a"<="a"\n')
+    check('not-equal composes with OR and string comparison',
+          '-1 -1 -1' in m.text_screen(), m.text_screen())
+
+
 def test_hokuto():
     archive = ROMS / 'Hokuto no Ken [FD hdb].zip'
     if not archive.exists():
@@ -119,5 +200,10 @@ def test_hokuto():
 
 if __name__ == '__main__':
     test_direct()
+    test_memory_and_calendar()
+    test_get_graphics()
+    test_call_arguments()
+    test_disk_character_encoding()
+    test_compound_comparisons()
     test_hokuto()
     sys.exit(1 if failures else 0)

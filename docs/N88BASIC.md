@@ -8,11 +8,15 @@ their memory, interrupt and I/O use was recorded. No NEC code is copied; the
 reference ROM was used only to learn interfaces (entry points, work-area
 fields, the program-text format, token values) and behaviour.
 
-Status: enough to run disk BASIC programs that mainly use BASIC for program
-flow and machine code for graphics, such as Hokuto no Ken (Enix, 1986).
-Numbers are 16-bit integers; floating point, arrays, file I/O, graphics
-statements beyond SCREEN/COLOR/CLS, sound (`CMD`) and program listing are
-not there yet (they stop with "Feature not available" and the line number).
+Status: integer and single-precision arithmetic, strings, arrays, file I/O,
+LIO graphics, and machine-code calls are implemented. Double precision,
+SAVE/BSAVE, DRAW/WINDOW and sound statements beyond BEEP remain incomplete.
+
+The Zatsugaku Olympics compatibility work adds the RAM ceiling at 0060:1402h,
+unsigned CLEAR addresses, TIME$/DATE$, bounded GET@, and CALL with variable
+arguments. Compound comparisons (`<>`, `<=`, `>=`) now retain both operator
+bits; previously the second operator silently replaced the first. These are
+general runtime features, not game-specific patches.
 
 ## Start-up
 
@@ -50,6 +54,7 @@ the machine code loads the program text to [0060:06A4h], sets the end at
 | 0060:0620h-0637h, 0A08h | LIO work area (BASIC calls LIO with DS = 0060h) |
 | 0060:06A4h / 06A6h | program text start / end |
 | 0060:06E4h | current line number (FFFFh in direct mode) |
+| 0060:1402h | conventional RAM ceiling in paragraphs (A000h on this core) |
 | 0060:1410h | segment of variables and strings (VSEG) |
 | 0060:1D00h-[06A4h] | disk module buffers |
 | 0060:[06A4h] | program text |
@@ -100,13 +105,20 @@ blocks form one 16-aligned region in VSEG (moved up as variables are added).
 
 Graphics statements work in coordinates relative to the VIEW origin (VIEW
 SCREEN: absolute); SCREEN resets the view. `WIDTH 40` uses the hardware's
-40-column mode: character x is text cell 2x, and bytes 80h-9Fh/E0h-FFh are
-ANK characters (Shift-JIS is decoded in 80 columns only).
+40-column mode: character x is text cell 2x. Disk BASIC uses ANK characters, including the
+80h-9Fh/E0h-FFh graphics characters, with ESC K / ESC H selecting JIS kanji
+pairs. It does not use the MS-DOS BASIC variant's Shift-JIS console encoding.
+The distinction is documented in [the program-format reference](https://www.antun.net/tips/p2v/nBasic.html).
+
+GET@ captures into the remaining bytes of a numeric array (or a subscripted
+element onward); too-small arrays are rejected before the image is written.
+TIME$ returns HH:MM:SS and DATE$ returns YY/MM/DD from INT 1Ch.
 
 ## Machine code
 
 | | |
 |---|---|
+| `CALL v(args)` | up to 16 variable references, rightmost first in a far-pointer table at DS:BX; numeric values and string descriptors remain in VSEG |
 | `CALL v` | INT C3h with the vector set to DEF SEG:v |
 | `USRn(x)` | INT C3h with the vector set to the address from `DEF USRn` |
 | registers | DS = ES = 0060h, BX -> argument (FAC), AL = its type, CX = 0060h, DX = VSEG; the routine ends with IRET |

@@ -79,6 +79,7 @@ b_init:
     mov di, W
     mov cx, (W_END-W)/2
     rep stosw
+    mov word [RAMTOP], 0A000h      ; conventional RAM ends before text VRAM
     mov word [KBUFPTR], KBUF
     mov word [B_VSEG], 1000h        ; without a disk module
     mov word [B_STRTOP], STR_TOP_DEFAULT

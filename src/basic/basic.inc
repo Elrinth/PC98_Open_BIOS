@@ -18,8 +18,12 @@ DISKMODE        equ 0505h       ; [if] 1: the IPL loaded a disk BASIC module
 TXTTAB          equ 06A4h       ; [if] program text start (INT B4h moves it)
 PRGEND          equ 06A6h       ; [if] program text end (loaders set it for INT C4h 1Bh)
 CURLIN          equ 06E4h       ; [if] current line number, FFFFh = direct mode
+RAMTOP          equ 1402h       ; [if] conventional RAM ceiling, in paragraphs
 KBUFPTR         equ 1406h       ; [if] offset of KBUF
 VARSEG          equ 1410h       ; [if] segment of variables and strings
+B_CALLARGS      equ 1500h       ; 16 far variable pointers, rightmost first
+B_CALLTARGET    equ 1540h       ; far target for CALL with arguments
+B_CALLCOUNT     equ 1544h
 USRTAB          equ 14AEh       ; USR0-USR9 far pointers
 TXT_DEFAULT     equ 1D00h       ; text start until the module reserves its buffers
 DIRLINE         equ 1000h       ; tokenised direct line: [len][FFFFh][tokens][0]
@@ -60,7 +64,9 @@ B_ARGN          equ W+0A0h      ; argument present flags (16 bytes)
 B_GCLIM         equ W+0B0h      ; garbage collection: strings at/above are placed
 B_GCNEW         equ W+0B2h      ; garbage collection: new address of the moved string
 B_RNDSEED       equ W+0B4h
-B_SJIS          equ W+0B6h      ; pending Shift-JIS lead byte for PRINT
+B_JISLEAD       equ W+0B6h      ; pending JIS row byte for PRINT
+B_JISMODE       equ W+16h       ; ESC K / ESC H selects double-byte text
+B_ESC          equ W+17h       ; pending console escape
 B_PRNL          equ W+0B7h      ; PRINT: no newline at the end
 B_DATLINE       equ W+0B8h      ; line header of B_DATPTR
 B_TSTK          equ W+0C0h      ; 8 temporary strings: db len, db 0, dw ptr, dw seg

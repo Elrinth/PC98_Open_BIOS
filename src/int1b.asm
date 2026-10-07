@@ -123,6 +123,16 @@ int1b_body:
     mov al, DISK_NOT_READY
     test byte [bp+F_AL], 02h       ; only units 0 and 1 exist; commands on
     jnz .status                    ; units 2/3 can wedge the core's FDC
+    ; The interface is selected by POST/boot or an explicit OUT BEh, not
+    ; by probing INT 1Bh. Advertising the other interface creates phantom
+    ; drives in DOS (e.g. IO98.SYS probes AX=83F0h on a 1 MB boot).
+    in al, 0BEh
+    xor al, [bp+L_TYPE]
+    test al, 1
+    jz .interface_ok
+    mov al, 40h                    ; equipment check: interface absent
+    jmp .status
+.interface_ok:
     call fd_select_interface
     call fd_mask_irq
     mov bl, [bp+F_AH]
@@ -1224,13 +1234,12 @@ fd_init:
     pop ax
     mov [bp+L_UNIT], al
     mov ax, [DISK_EQUIP]
+    and ax, 0FF0h                  ; clear only the two floppy drive banks
     test byte [bp+L_TYPE], 01h
     jz .low
-    and ax, 0FFF0h
     or ax, 0003h
     jmp .set
 .low:
-    and ax, 0FFFh
     or ax, 3000h
 .set:
     mov [DISK_EQUIP], ax
@@ -1280,20 +1289,83 @@ fd_mode:
 ; DISK_INTL/DISK_INTH flags, then acknowledge.
 int13_fdd_irq:
     push ax
+    push bx
+    push cx
+    push dx
     push ds
-    xor ax, ax
-    mov ds, ax
-    or byte [DISK_INTL], 0Fh
-    pop ds
-    pop ax
-    jmp irq_slave_eoi
+    mov bx, DISK_INTL
+    mov ch, 0Fh
+    jmp fd_irq_common
 
 int12_fdd_irq:
     push ax
+    push bx
+    push cx
+    push dx
     push ds
+    mov bx, DISK_INTH
+    mov ch, 0F0h
+fd_irq_common:
     xor ax, ax
     mov ds, ax
-    or byte [DISK_INTH], 0F0h
+    call fd_media_irq
+    test al, al
+    jz .done                       ; media-only IRQ is not seek completion
+    or [bx], ch
+.done:
     pop ds
+    pop dx
+    pop cx
+    pop bx
     pop ax
     jmp irq_slave_eoi
+
+; Optional Zet98 media-event register, version 1. Older cores read FFh and
+; retain the original interrupt behavior. Real mount/eject changes produce
+; a not-ready record before chained DOS IRQ handlers inspect the work area.
+; No FDC commands are issued here, so seek/data result phases remain intact.
+; AL=0 only for a media-only IRQ, AL!=0 for a native completion/legacy IRQ.
+fd_media_irq:
+    push bx
+    push cx
+    push dx
+    mov dx, 07ED0h
+    in al, dx
+    mov cl, al
+    and al, 0F8h
+    cmp al, 0A8h                   ; version 1, notifications enabled
+    jne .legacy
+    mov al, cl
+    and al, 03h
+    jz .legacy
+    cmp bx, DISK_INTH
+    je .low_interface
+    test al, 01h
+    jz .drive1
+    mov byte [DISK_RESULT], 0C8h    ; ready change, drive 0, not ready
+.drive1:
+    test al, 02h
+    jz .ack
+    mov byte [DISK_RESULT+8], 0C9h
+    jmp .ack
+.low_interface:
+    test al, 01h
+    jz .low_drive1
+    mov byte [05D8h], 0C8h         ; 640 KB seek/ready result records
+.low_drive1:
+    test al, 02h
+    jz .ack
+    mov byte [05DAh], 0C9h
+.ack:
+    or al, 80h                     ; acknowledge only observed drive bits
+    out dx, al
+    mov al, cl
+    and al, 04h                    ; concurrent native FDC IRQ still completes
+    jmp .done
+.legacy:
+    mov al, 1
+.done:
+    pop dx
+    pop cx
+    pop bx
+    ret

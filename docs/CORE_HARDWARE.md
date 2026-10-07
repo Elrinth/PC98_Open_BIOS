@@ -125,6 +125,19 @@ pulses and stepping are emulated). Rules the BIOS follows:
 - The FDC **cannot be reset by software** (bit 7 only resets a timing tick)
   and there are no reset/ready-change interrupts: SENSE INTERRUPT after
   power-up returns the single byte 80h.
+- New paired cores offer an **opt-in media-change latch at 7ED0h**: read
+  upper nibble Ah identifies version 1, bit 3 is enable, bit 2 is the existing
+  floppy IRQ, and bits 1:0 latch changes of drives 1:0. Write A5h to enable,
+  00h to disable, or 80h | mask to acknowledge. It is disabled on core reset.
+  Pending events share IRQ10/11 but wait for the FDC to be idle; the BIOS
+  consumes this register without issuing FDC commands and updates the DOS
+  ready-change records before chained handlers run. A media-only IRQ must
+  not set the seek/data completion flag. Older cores read FFh and retain
+  legacy behavior. This is a paired core/BIOS feature, not native 765 ready
+  polling for third-party BIOSes.
+- INT 1Bh must reject an inactive interface with AH=40h/CF=1 instead of
+  switching BEh in response to a probe. Boot explicitly selects its interface;
+  the equipment word must describe that one bank of physical drives.
 - Drives start at an unknown cylinder (127): **recalibrate first**. Only
   units 0 and 1 exist; commands on units 2/3 can wedge the FDC until a
   MiSTer reset.

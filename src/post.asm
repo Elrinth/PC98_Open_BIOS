@@ -37,6 +37,15 @@ cold_start:
     call kbd_init_far
     call init_memory_switches
     call init_workarea
+    ; Opt in only when the core advertises the media-event register.
+    mov dx, 07ED0h
+    in al, dx
+    and al, 0F0h
+    cmp al, 0A0h
+    jne .no_media_events
+    mov al, 0A5h
+    out dx, al
+.no_media_events:
     call count_extended_memory
     call init_screen
 

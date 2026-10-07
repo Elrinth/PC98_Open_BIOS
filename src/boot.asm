@@ -138,12 +138,25 @@ floppy_boot:
     inc si
     jmp .device
 .none:
+    mov al, 03h
+    out 0BEh, al
+    and word [DISK_EQUIP], 0FF0h
+    or word [DISK_EQUIP], 0003h
     ret
 
 floppy_boot_devices: db 90h, 91h, 70h, 71h, 0
 
 ; Try to boot from DA/UA AL. Returns on failure.
 floppy_try:
+    ; Boot explicitly selects an interface before using its BIOS services.
+    push ax
+    test al, 80h
+    mov al, 03h
+    jnz .interface
+    xor al, al
+.interface:
+    out 0BEh, al
+    pop ax
     mov [DISK_BOOT], al
     mov ah, 03h                    ; initialise the interface
     int 1Bh

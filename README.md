@@ -6,6 +6,15 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-07](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-07):**
+Use with [core B247](https://github.com/Elrinth/Zet98_486_MiSTer/releases/tag/B247)
+for real floppy media-change notifications. Sword Dancer accepts Disk D in either
+drive, reaches gameplay and dialogue, and its MS-DOS HDD installer gets past the
+previously rejected Disk A swap. Interface probes no longer switch to an absent
+controller or advertise phantom drives. N88-BASIC quiz input remains verified.
+Older cores retain the legacy interrupt behavior; they do not gain the media-change
+fix from a BIOS update alone. No game patches or keyboard-triggered workarounds.
+
 **Status (2026-10-04): verified on MiSTer with core B240.** Policenauts
 boots with EMM386 and the user confirms smooth PCM music with the matching
 core fix. Cyberblock Metal Orange reaches New Start with smooth music during

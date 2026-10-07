@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-TESTS = ['test_post.py', 'test_services.py', 'test_fdd_bios.py', 'test_floppy_boot.py', 'test_graphics.py', 'test_lio.py', 'test_dos_boot.py', 'test_basic.py']
+TESTS = ['test_post.py', 'test_services.py', 'test_fdd_bios.py', 'test_floppy_events.py', 'test_floppy_boot.py', 'test_graphics.py', 'test_lio.py', 'test_dos_boot.py', 'test_basic.py']
 
 
 def main():

@@ -6,6 +6,15 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-08](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-08):**
+Freshly assembled from the existing firmware with the freely licensed font,
+paired with [core B248](https://github.com/Elrinth/Zet98_486_MiSTer/releases/tag/B248).
+All nine BIOS regression suites pass. Firmware functionality is unchanged
+from 2026-10-07; PC-9821 native-BIOS compatibility fixes are in the core.
+For testing an original NEC Ce2 or unknown-model PC-9821 dump, follow the
+[core BIOS setup guide](https://github.com/Elrinth/Zet98_486_MiSTer/blob/B248/docs/OFFICIAL_BIOS_SETUP.md).
+Windows 95 desktop startup remains unresolved.
+
 **Release [2026-10-07](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-07):**
 Use with [core B247](https://github.com/Elrinth/Zet98_486_MiSTer/releases/tag/B247)
 for real floppy media-change notifications. Sword Dancer accepts Disk D in either

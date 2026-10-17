@@ -119,9 +119,11 @@ pulses and stepping are emulated). Rules the BIOS follows:
   before its first byte and return successful, zero-filled driver reads.
   This was reproduced with asynchronous DMA and on Policenauts hardware;
   the corrected BIOS reaches its title with smooth PCM on the PCM-fixed core.
-- **FRY (94h/CCh bit 6) is inverted versus NP2**: 0 (reset) forces READY,
-  1 passes the drive's real ready (image loaded and motor on, bit 3).
-  Use 48h.
+- **FRY (94h/CCh bit 6)**: 1 forces READY, 0 passes the drive's real ready
+  (image loaded and motor on, bit 3), as NP2kai and MAME. Cores before B228
+  had it inverted. Use 08h: with FRY set an empty drive looks ready, sense
+  returns 01h instead of 60h and DOS later stops at a hidden "Abort, Retry,
+  Fail" prompt (Gate of Souls' New Game probes drive 0 this way).
 - The FDC **cannot be reset by software** (bit 7 only resets a timing tick)
   and there are no reset/ready-change interrupts: SENSE INTERRUPT after
   power-up returns the single byte 80h.

@@ -69,7 +69,7 @@ iodata:
     ; (DACK active high) or its FDC sees a permanent DACK
     db 11h,44h, 11h,40h
     ; 1 MB floppy interface, 2HD rate; drive ready from the drive, motors on
-    db 0BEh,03h, 94h,48h
+    db 0BEh,03h, 94h,08h
     ; PIT: counter 0 mode 0 (stopped), counter 1 beep 2 kHz, counter 2 RS-232C
     db 77h,30h, 71h,00h, 71h,00h
     db 77h,76h, 73h,0CDh, 73h,04h

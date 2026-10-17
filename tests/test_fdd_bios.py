@@ -140,6 +140,10 @@ def main():
     # not ready: drive 1 empty
     out = m.call_int(0x1b, ax=0x5691, bx=1024, cx=0x0300, dx=0x0001, es=BUF, bp=0)
     check('empty drive -> 60h', out['cf'] and out['ax'] >> 8 == 0x60, hex(out['ax']))
+    # sense on the empty drive: Not Ready, not 'ready 2HD' (Gate of Souls' New
+    # Game senses drive 0 and reads it through DOS when it looks ready)
+    out = m.call_int(0x1b, ax=0x0491, es=BUF, bp=0)
+    check('sense empty drive -> 60h', out['ax'] >> 8 == 0x60, hex(out['ax']))
     # Exercise the V86 DMA protocol without asking Unicorn's real-mode BIOS
     # harness to run EMM386. Override only SMSW's PE result, then reject the
     # global command writes EMM386 rejects. Hardware covers the full monitor.

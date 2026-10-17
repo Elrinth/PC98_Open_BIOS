@@ -237,12 +237,15 @@ class FDC:
         return 2 if self.interface else 3
 
     def ready(self, unit):
-        # core: FRY (bit 6) = 1 passes the drive's ready; 0 forces ready
-        if not self.control & 0x40:
+        # core (B228+, as NP2kai/MAME): FRY (bit 6) = 1 forces ready; 0 passes
+        # the drive's ready (image loaded and motor on)
+        if self.control & 0x40:
             return unit < 3
         return unit < 2 and self.drives[unit] is not None and bool(self.control & 0x08)
 
     def density_ok(self, disk):
+        if disk is None:                 # forced ready, no image: no ID marks
+            return False
         # the core's drive plays the image at its own bit rate: a 2DD/2D disk
         # cannot be read with BEh bit 1 (2HD mode) set, nor a 2HD disk without it
         return (disk.media == '2HD') == self.hd
@@ -299,10 +302,12 @@ class FDC:
         if op == 0x04:                                   # SENSE DRIVE STATUS
             u = cmd[1] & 3
             st3 = u | (cmd[1] & 4)
+            # core ST3: READY follows the FDC's READY input (forced by FRY
+            # even with no image); two-sided is always set
+            st3 |= 0x20 if self.ready(u) else 0
+            st3 |= 0x08
             if self.drives[u]:
-                st3 |= 0x20 if self.ready(u) else 0
                 st3 |= 0x40 if self.drives[u].write_protected else 0
-                st3 |= 0x08                              # two-sided
             if self.cyl[u] == 0:
                 st3 |= 0x10
             self.result = [st3]

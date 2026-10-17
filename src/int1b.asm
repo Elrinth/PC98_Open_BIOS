@@ -250,10 +250,10 @@ fd_select_interface:
     and al, 3
     or al, ah
     mov [bp+L_UNIT], al
-    ; drive ready (FRY), motor on
+    ; motor on; FRY (bit 6) clear so an empty drive reports Not Ready
     mov dx, [bp+L_BASE]
     add dx, 4
-    mov al, 48h
+    mov al, 08h
     out dx, al
     ret
 

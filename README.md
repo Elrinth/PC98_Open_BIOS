@@ -6,6 +6,14 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-18](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18):**
+Empty floppy drives report Not Ready again. Since core B228 the FDC control
+port's FRY bit forces READY (as in NP2kai and MAME), and the BIOS still set it,
+so INT 1Bh sense on an empty drive answered "2HD ready". Gate of Souls (Tamashii
+no Mon) probes drive 0 at New Game and then stopped at a hidden DOS
+"Abort, Retry, Fail" prompt on a black screen; it now goes straight into the
+story. Use with core B256 or newer (any core from B228 on).
+
 **Release [2026-10-08](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-08):**
 Freshly assembled from the existing firmware with the freely licensed font,
 paired with [core B248](https://github.com/Elrinth/Zet98_486_MiSTer/releases/tag/B248).

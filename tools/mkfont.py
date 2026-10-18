@@ -570,6 +570,13 @@ def build(ank_bdf, kanji_bdf):
         if 0xa0 + ten - 0x20 < 0xe0:
             put(0x0a, ten, half(0xa0 + ten - 0x20))
         put(0x0b, ten, [r << 8 for r in row11.get(ten, [0] * 16)])
+    # fit the 8x16 ANK set to the observed PC-98 character boxes (fontspec/)
+    spec_path = Path(__file__).resolve().parent.parent / 'fontspec' / 'observed_metrics.json'
+    if spec_path.exists():
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import json
+        import fontmetrics
+        rom = bytearray(fontmetrics.apply(bytes(rom), json.loads(spec_path.read_text(encoding='utf-8'))))
     return bytes(rom), len(ank), len(kanji) + len(extra)
 
 

@@ -52,6 +52,12 @@ PC-98 code assignment:
   RU are drawn in seven columns. `mkfont.py --align-only` applies the same
   step to an existing image.
 
+- The 8x16 ANK set is fitted to character dimensions observed on real
+  PC-98 text screens (capitals rows 3-13, x-height rows 6-13, descenders to
+  row 15): each free glyph keeps its own shape, resized into the observed box
+  ([fontspec/README.md](../fontspec/README.md) explains the clean-room rules).
+  The zero is slashed.
+
 These are approximations drawn from scratch, not NEC's bitmaps. Gaiji rows
 (76h/77h) start blank, as on real machines.
 

@@ -1,0 +1,1087 @@
+{
+ "method": "Measured from 640x400 text-mode screenshots of real PC-98 software output (fontspec/observations.json). Per character: inked bounding box rows/columns and ink pixel count. No glyph bitmaps are recorded.",
+ "ank8x16": {
+  "26": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 1
+  },
+  "28": {
+   "top": 3,
+   "bottom": 13,
+   "left": 4,
+   "right": 6,
+   "ink": 11,
+   "samples": 7
+  },
+  "29": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 4,
+   "ink": 11,
+   "samples": 7
+  },
+  "2B": {
+   "top": 5,
+   "bottom": 11,
+   "left": 1,
+   "right": 7,
+   "ink": 13,
+   "samples": 1
+  },
+  "2C": {
+   "top": 11,
+   "bottom": 14,
+   "left": 3,
+   "right": 4,
+   "ink": 6,
+   "samples": 16
+  },
+  "2D": {
+   "top": 8,
+   "bottom": 8,
+   "left": 1,
+   "right": 7,
+   "ink": 7,
+   "samples": 16
+  },
+  "2E": {
+   "top": 12,
+   "bottom": 13,
+   "left": 3,
+   "right": 4,
+   "ink": 4,
+   "samples": 12
+  },
+  "2F": {
+   "top": 5,
+   "bottom": 11,
+   "left": 1,
+   "right": 7,
+   "ink": 7,
+   "samples": 8
+  },
+  "30": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 37,
+   "samples": 32
+  },
+  "31": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 5,
+   "ink": 15,
+   "samples": 24
+  },
+  "32": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 24,
+   "samples": 18
+  },
+  "33": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 21,
+   "samples": 14
+  },
+  "34": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 24,
+   "samples": 18
+  },
+  "35": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 25,
+   "samples": 10
+  },
+  "36": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 22
+  },
+  "37": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 19,
+   "samples": 8
+  },
+  "38": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 25,
+   "samples": 31
+  },
+  "39": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 28
+  },
+  "3A": {
+   "top": 6,
+   "bottom": 12,
+   "left": 3,
+   "right": 4,
+   "ink": 8,
+   "samples": 7
+  },
+  "3C": {
+   "top": 4,
+   "bottom": 12,
+   "left": 2,
+   "right": 6,
+   "ink": 9,
+   "samples": 1
+  },
+  "3D": {
+   "top": 7,
+   "bottom": 10,
+   "left": 1,
+   "right": 7,
+   "ink": 14,
+   "samples": 1
+  },
+  "3E": {
+   "top": 4,
+   "bottom": 12,
+   "left": 2,
+   "right": 6,
+   "ink": 9,
+   "samples": 4
+  },
+  "41": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 8
+  },
+  "42": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 31,
+   "samples": 6
+  },
+  "43": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 19,
+   "samples": 26
+  },
+  "44": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 28,
+   "samples": 8
+  },
+  "45": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 28,
+   "samples": 19
+  },
+  "46": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 22,
+   "samples": 3
+  },
+  "47": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 1
+  },
+  "48": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 27,
+   "samples": 2
+  },
+  "49": {
+   "top": 3,
+   "bottom": 13,
+   "left": 3,
+   "right": 5,
+   "ink": 15,
+   "samples": 9
+  },
+  "4B": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 22,
+   "samples": 5
+  },
+  "4C": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 7,
+   "ink": 16,
+   "samples": 3
+  },
+  "4D": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 28,
+   "samples": 26
+  },
+  "4E": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 30,
+   "samples": 6
+  },
+  "4F": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 24,
+   "samples": 3
+  },
+  "50": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 24,
+   "samples": 16
+  },
+  "51": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 30,
+   "samples": 1
+  },
+  "52": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 28,
+   "samples": 8
+  },
+  "53": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 21,
+   "samples": 27
+  },
+  "54": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 17,
+   "samples": 21
+  },
+  "55": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 25,
+   "samples": 3
+  },
+  "56": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 21,
+   "samples": 6
+  },
+  "57": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 28,
+   "samples": 1
+  },
+  "58": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 21,
+   "samples": 3
+  },
+  "59": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 16,
+   "samples": 4
+  },
+  "5A": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 23,
+   "samples": 1
+  },
+  "5C": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 3
+  },
+  "61": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 6,
+   "ink": 23,
+   "samples": 20
+  },
+  "62": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 7,
+   "ink": 23,
+   "samples": 3
+  },
+  "63": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 16,
+   "samples": 19
+  },
+  "64": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 6,
+   "ink": 23,
+   "samples": 19
+  },
+  "65": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 22,
+   "samples": 37
+  },
+  "66": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 6,
+   "ink": 16,
+   "samples": 15
+  },
+  "67": {
+   "top": 6,
+   "bottom": 15,
+   "left": 1,
+   "right": 7,
+   "ink": 27,
+   "samples": 7
+  },
+  "68": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 7,
+   "ink": 21,
+   "samples": 8
+  },
+  "69": {
+   "top": 3,
+   "bottom": 13,
+   "left": 4,
+   "right": 4,
+   "ink": 9,
+   "samples": 29
+  },
+  "6B": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 7,
+   "ink": 20,
+   "samples": 3
+  },
+  "6C": {
+   "top": 3,
+   "bottom": 13,
+   "left": 3,
+   "right": 4,
+   "ink": 12,
+   "samples": 15
+  },
+  "6D": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 26,
+   "samples": 4
+  },
+  "6E": {
+   "top": 6,
+   "bottom": 13,
+   "left": 2,
+   "right": 7,
+   "ink": 19,
+   "samples": 26
+  },
+  "6F": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 18,
+   "samples": 48
+  },
+  "70": {
+   "top": 6,
+   "bottom": 15,
+   "left": 2,
+   "right": 7,
+   "ink": 22,
+   "samples": 15
+  },
+  "71": {
+   "top": 6,
+   "bottom": 15,
+   "left": 1,
+   "right": 6,
+   "ink": 22,
+   "samples": 1
+  },
+  "72": {
+   "top": 6,
+   "bottom": 13,
+   "left": 2,
+   "right": 6,
+   "ink": 12,
+   "samples": 35
+  },
+  "73": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 22,
+   "samples": 26
+  },
+  "74": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 6,
+   "ink": 17,
+   "samples": 22
+  },
+  "75": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 6,
+   "ink": 19,
+   "samples": 17
+  },
+  "76": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 14,
+   "samples": 3
+  },
+  "77": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 20,
+   "samples": 2
+  },
+  "78": {
+   "top": 6,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 14,
+   "samples": 1
+  },
+  "79": {
+   "top": 6,
+   "bottom": 15,
+   "left": 2,
+   "right": 7,
+   "ink": 18,
+   "samples": 11
+  },
+  "AD": {
+   "top": 7,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 16,
+   "samples": 1
+  },
+  "AE": {
+   "top": 7,
+   "bottom": 13,
+   "left": 1,
+   "right": 6,
+   "ink": 21,
+   "samples": 1
+  },
+  "B0": {
+   "top": 9,
+   "bottom": 9,
+   "left": 1,
+   "right": 7,
+   "ink": 7,
+   "samples": 4
+  },
+  "B2": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 15,
+   "samples": 1
+  },
+  "B8": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 20,
+   "samples": 1
+  },
+  "BA": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 22,
+   "samples": 1
+  },
+  "BC": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 17,
+   "samples": 2
+  },
+  "BD": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 18,
+   "samples": 1
+  },
+  "BF": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 16,
+   "samples": 2
+  },
+  "C0": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 23,
+   "samples": 1
+  },
+  "C4": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 6,
+   "ink": 15,
+   "samples": 1
+  },
+  "C5": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 18,
+   "samples": 1
+  },
+  "CA": {
+   "top": 3,
+   "bottom": 12,
+   "left": 1,
+   "right": 7,
+   "ink": 18,
+   "samples": 2
+  },
+  "CB": {
+   "top": 3,
+   "bottom": 12,
+   "left": 1,
+   "right": 7,
+   "ink": 21,
+   "samples": 1
+  },
+  "CC": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 16,
+   "samples": 1
+  },
+  "CF": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 18,
+   "samples": 1
+  },
+  "D8": {
+   "top": 3,
+   "bottom": 13,
+   "left": 2,
+   "right": 6,
+   "ink": 18,
+   "samples": 1
+  },
+  "D9": {
+   "top": 3,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 24,
+   "samples": 1
+  },
+  "DB": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 30,
+   "samples": 1
+  },
+  "DD": {
+   "top": 4,
+   "bottom": 13,
+   "left": 1,
+   "right": 7,
+   "ink": 14,
+   "samples": 2
+  },
+  "DE": {
+   "top": 2,
+   "bottom": 4,
+   "left": 1,
+   "right": 6,
+   "ink": 6,
+   "samples": 3
+  },
+  "DF": {
+   "top": 2,
+   "bottom": 5,
+   "left": 1,
+   "right": 4,
+   "ink": 8,
+   "samples": 2
+  }
+ },
+ "kanji16": {
+  "213C": {
+   "top": 6,
+   "bottom": 7,
+   "left": 2,
+   "right": 14,
+   "ink": 13,
+   "samples": 4
+  },
+  "2333": {
+   "top": 1,
+   "bottom": 14,
+   "left": 3,
+   "right": 13,
+   "ink": 38,
+   "samples": 1
+  },
+  "2336": {
+   "top": 1,
+   "bottom": 14,
+   "left": 3,
+   "right": 13,
+   "ink": 39,
+   "samples": 1
+  },
+  "2338": {
+   "top": 1,
+   "bottom": 14,
+   "left": 3,
+   "right": 13,
+   "ink": 45,
+   "samples": 1
+  },
+  "2345": {
+   "top": 1,
+   "bottom": 13,
+   "left": 3,
+   "right": 12,
+   "ink": 43,
+   "samples": 2
+  },
+  "234D": {
+   "top": 1,
+   "bottom": 13,
+   "left": 1,
+   "right": 15,
+   "ink": 54,
+   "samples": 3
+  },
+  "2353": {
+   "top": 1,
+   "bottom": 13,
+   "left": 3,
+   "right": 13,
+   "ink": 41,
+   "samples": 1
+  },
+  "242C": {
+   "top": 0,
+   "bottom": 14,
+   "left": 1,
+   "right": 15,
+   "ink": 47,
+   "samples": 2
+  },
+  "2439": {
+   "top": 1,
+   "bottom": 14,
+   "left": 1,
+   "right": 14,
+   "ink": 40,
+   "samples": 5
+  },
+  "2447": {
+   "top": 2,
+   "bottom": 13,
+   "left": 2,
+   "right": 15,
+   "ink": 33,
+   "samples": 5
+  },
+  "244A": {
+   "top": 1,
+   "bottom": 14,
+   "left": 1,
+   "right": 14,
+   "ink": 46,
+   "samples": 2
+  },
+  "244F": {
+   "top": 1,
+   "bottom": 14,
+   "left": 2,
+   "right": 14,
+   "ink": 49,
+   "samples": 3
+  },
+  "2522": {
+   "top": 2,
+   "bottom": 14,
+   "left": 1,
+   "right": 14,
+   "ink": 33,
+   "samples": 1
+  },
+  "2524": {
+   "top": 1,
+   "bottom": 14,
+   "left": 2,
+   "right": 13,
+   "ink": 21,
+   "samples": 3
+  },
+  "2538": {
+   "top": 0,
+   "bottom": 14,
+   "left": 3,
+   "right": 15,
+   "ink": 29,
+   "samples": 3
+  },
+  "2539": {
+   "top": 2,
+   "bottom": 14,
+   "left": 2,
+   "right": 14,
+   "ink": 29,
+   "samples": 1
+  },
+  "2549": {
+   "top": 1,
+   "bottom": 14,
+   "left": 5,
+   "right": 13,
+   "ink": 25,
+   "samples": 4
+  },
+  "254F": {
+   "top": 2,
+   "bottom": 13,
+   "left": 1,
+   "right": 14,
+   "ink": 23,
+   "samples": 2
+  },
+  "2550": {
+   "top": 0,
+   "bottom": 13,
+   "left": 1,
+   "right": 15,
+   "ink": 27,
+   "samples": 3
+  },
+  "2555": {
+   "top": 3,
+   "bottom": 14,
+   "left": 2,
+   "right": 13,
+   "ink": 27,
+   "samples": 1
+  },
+  "255A": {
+   "top": 2,
+   "bottom": 13,
+   "left": 1,
+   "right": 15,
+   "ink": 23,
+   "samples": 2
+  },
+  "2560": {
+   "top": 1,
+   "bottom": 14,
+   "left": 2,
+   "right": 14,
+   "ink": 31,
+   "samples": 1
+  },
+  "2561": {
+   "top": 1,
+   "bottom": 13,
+   "left": 4,
+   "right": 13,
+   "ink": 22,
+   "samples": 1
+  },
+  "2562": {
+   "top": 2,
+   "bottom": 13,
+   "left": 1,
+   "right": 14,
+   "ink": 42,
+   "samples": 1
+  },
+  "2567": {
+   "top": 5,
+   "bottom": 13,
+   "left": 3,
+   "right": 10,
+   "ink": 29,
+   "samples": 1
+  },
+  "2569": {
+   "top": 2,
+   "bottom": 14,
+   "left": 2,
+   "right": 14,
+   "ink": 36,
+   "samples": 2
+  },
+  "256A": {
+   "top": 1,
+   "bottom": 14,
+   "left": 4,
+   "right": 12,
+   "ink": 25,
+   "samples": 1
+  },
+  "256B": {
+   "top": 2,
+   "bottom": 14,
+   "left": 1,
+   "right": 15,
+   "ink": 31,
+   "samples": 1
+  },
+  "256C": {
+   "top": 1,
+   "bottom": 14,
+   "left": 4,
+   "right": 14,
+   "ink": 26,
+   "samples": 2
+  },
+  "2573": {
+   "top": 2,
+   "bottom": 14,
+   "left": 3,
+   "right": 14,
+   "ink": 19,
+   "samples": 2
+  },
+  "3068": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 80,
+   "samples": 1
+  },
+  "3244": {
+   "top": 1,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 54,
+   "samples": 3
+  },
+  "387A": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 71,
+   "samples": 1
+  },
+  "3B45": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 50,
+   "samples": 1
+  },
+  "3B48": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 74,
+   "samples": 3
+  },
+  "3F74": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 77,
+   "samples": 2
+  },
+  "473D": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 79,
+   "samples": 3
+  },
+  "4D2D": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 64,
+   "samples": 1
+  },
+  "4D4D": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 80,
+   "samples": 1
+  },
+  "4D51": {
+   "top": 1,
+   "bottom": 15,
+   "left": 1,
+   "right": 14,
+   "ink": 74,
+   "samples": 3
+  },
+  "4E4E": {
+   "top": 0,
+   "bottom": 15,
+   "left": 1,
+   "right": 15,
+   "ink": 84,
+   "samples": 1
+  }
+ }
+}

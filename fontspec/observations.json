@@ -1,0 +1,266 @@
+{
+ "note": "Screenshots are not part of the repository. Each was captured from the MiSTer core's 640x400 text screen (one screen pixel per font pixel) while it ran real PC-98 software. Only the character dimensions measured from them are kept (observed_metrics.json).",
+ "screenshots": [
+  {
+   "id": "dos_qualify",
+   "sha256": "f41e761cc8bd837fedb6af834865f1530c20f835ef343965ac231ca8e54bc5cd",
+   "description": "MS-DOS 6.20 boot banner and the QUALIFY test output (ASCII, digits, half-width katakana)",
+   "half": [
+    [
+     1,
+     0,
+     "NEC PC-9800 ｼﾘｰｽﾞ ﾊﾟｰｿﾅﾙ ｺﾝﾋﾟｭｰﾀ"
+    ],
+    [
+     3,
+     0,
+     "ﾏｲｸﾛｿﾌﾄ MS-DOS ﾊﾞｰｼﾞｮﾝ 6.20"
+    ],
+    [
+     4,
+     0,
+     "Copyright (C) 1981,1994 Microsoft Corp. / NEC Corporation"
+    ],
+    [
+     5,
+     0,
+     "Z98MEM: 64 MB map, 62 MB extended RAM detected."
+    ],
+    [
+     6,
+     0,
+     "Doom 1993 install drive ready. Floppy source is mounted separately."
+    ],
+    [
+     7,
+     0,
+     "A:\\>qualify"
+    ],
+    [
+     8,
+     0,
+     "---- QUALIFY: long line, DIVTEST, STRTEST, MEMTEST"
+    ],
+    [
+     9,
+     0,
+     "1234567890123456789012345678901234567890123456789012345678901234567890 LONGLINE-"
+    ],
+    [
+     10,
+     0,
+     "OK"
+    ],
+    [
+     11,
+     0,
+     "DIVTEST (PC98-486 DIV/IDIV check)"
+    ],
+    [
+     12,
+     0,
+     "Round 1 done, failures 0"
+    ],
+    [
+     13,
+     0,
+     "Round 2 done, failures 0"
+    ],
+    [
+     14,
+     0,
+     "Round 3 done, failures 0"
+    ],
+    [
+     15,
+     0,
+     "Round 4 done, failures 0"
+    ],
+    [
+     16,
+     0,
+     "DIVTEST PASS"
+    ],
+    [
+     17,
+     0,
+     "STRTEST (PC98-486 CPU string instructions)"
+    ],
+    [
+     18,
+     0,
+     "Cases 4008, failures 0"
+    ],
+    [
+     19,
+     0,
+     "STRTEST PASS"
+    ],
+    [
+     20,
+     0,
+     "MEMTEST (PC98-486 build check)"
+    ],
+    [
+     21,
+     0,
+     "Pass 1: conventional 531 KB KB, XMS 16384 KB, errors so far 0"
+    ],
+    [
+     22,
+     0,
+     "MEMTEST PASS"
+    ],
+    [
+     23,
+     0,
+     "A:\\>"
+    ]
+   ]
+  },
+  {
+   "id": "himem_emm386_nax",
+   "sha256": "1f5f7ae66afaee133584a2c14c011a0e9de4af6f4bfc43c771caac9e28b9c633",
+   "description": "HIMEM.SYS, EMM386 and NAX3 driver banners (ASCII and full-width kana, kanji and Latin)",
+   "half": [
+    [
+     0,
+     0,
+     "HIMEM:"
+    ],
+    [
+     0,
+     7,
+     "XMS"
+    ],
+    [
+     0,
+     19,
+     "Ver.2.60 - 05/10/90"
+    ],
+    [
+     1,
+     0,
+     "XMS"
+    ],
+    [
+     1,
+     18,
+     "2.0"
+    ],
+    [
+     2,
+     0,
+     "Copyright 1988-1990 Microsoft Corp./ NEC Corporation"
+    ],
+    [
+     4,
+     0,
+     "64K"
+    ],
+    [
+     8,
+     0,
+     "(C) Copyright Microsoft Corp. / NEC Corporation 1986,1991"
+    ],
+    [
+     11,
+     26,
+     "882"
+    ],
+    [
+     12,
+     29,
+     "64"
+    ],
+    [
+     13,
+     29,
+     "C000H"
+    ],
+    [
+     15,
+     0,
+     "A:\\>echo off"
+    ],
+    [
+     18,
+     1,
+     "copyright (c)1990-95 by Packen Software."
+    ],
+    [
+     19,
+     1,
+     "for YM2608/3438/2203, YMF288, PC-9801-86PCM, Windows Sound System PCM"
+    ],
+    [
+     20,
+     1,
+     "Public copy & use free."
+    ],
+    [
+     21,
+     1,
+     "Using device(s) = YM2608 + 86B<17ch>DSP-PCM"
+    ]
+   ],
+   "full": [
+    [
+     0,
+     10,
+     "ドライバ"
+    ],
+    [
+     1,
+     3,
+     "仕様バージョン"
+    ],
+    [
+     4,
+     4,
+     "ハイメモリ領域が有効です"
+    ],
+    [
+     7,
+     0,
+     "ＥＭＭ３８６ドライバ"
+    ],
+    [
+     10,
+     2,
+     "ＥＭＳが使用可能です"
+    ],
+    [
+     11,
+     4,
+     "使用可能なページ数は"
+    ],
+    [
+     12,
+     4,
+     "使用可能なハンドル数は"
+    ],
+    [
+     13,
+     4,
+     "ページフレームアドレスは"
+    ],
+    [
+     11,
+     30,
+     "です"
+    ],
+    [
+     12,
+     32,
+     "です"
+    ],
+    [
+     13,
+     34,
+     "です"
+    ]
+   ]
+  }
+ ]
+}

@@ -6,6 +6,14 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-18.2](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18.2):**
+Text now looks much more like a real PC-98. The free font's half-width characters
+are fitted to character dimensions measured on screenshots of real PC-98 text
+screens: capitals and digits use rows 3-13, lowercase rows 6-13, and the zero is
+slashed. The shapes stay the free font's own; [fontspec/](fontspec/README.md)
+documents the clean-room rules (observation only, dimensions not shapes, no NEC
+font data).
+
 **Release [2026-10-18.1](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18.1):**
 The free font's half-width characters now follow NEC's alignment: column 0
 stays blank and the glyph uses columns 1-7. Games that thicken or shift glyph

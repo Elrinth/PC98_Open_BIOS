@@ -6,6 +6,14 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-18.1](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18.1):**
+The free font's half-width characters now follow NEC's alignment: column 0
+stays blank and the glyph uses columns 1-7. Games that thicken or shift glyph
+bits drew dotted traces next to letters before (Gate of Souls' menu buttons and
+place names). Includes the 2026-10-18 floppy fix. Owners of a PC-98 can put
+their own dumped font into the boot.rom with `tools/own_font.py`
+([docs/FONT.md](docs/FONT.md)).
+
 **Release [2026-10-18](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18):**
 Empty floppy drives report Not Ready again. Since core B228 the FDC control
 port's FRY bit forces READY (as in NP2kai and MAME), and the BIOS still set it,

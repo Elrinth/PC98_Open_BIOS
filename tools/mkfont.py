@@ -71,6 +71,69 @@ def render(glyph, width, height, ascent):
     return cell
 
 
+# ---------------------------------------------------------- NEC alignment
+# NEC's half-width glyphs leave column 0 blank and draw in columns 1-7 (the
+# gap is on the left). Games that thicken or shift glyph bits rely on it:
+# Gate of Souls' menu and place names showed dotted traces with glyphs that
+# start in column 0. Only printable characters move; graphics (80h-9Fh,
+# E0h-FFh, box pieces) keep their full cells.
+ALIGN_CODES = tuple(range(0x21, 0x7f)) + tuple(range(0xa1, 0xe0))
+# Drawn here in seven columns where merging two columns of the base glyph
+# looked poor ('@' lost its ring, half-width RU its right stroke).
+ALIGN_DRAWN = {
+    0x40: ['........', '...###..', '..#...#.', '.#.....#', '.#..##.#', '.#.#.#.#',
+           '.#.#.#.#', '.#.#.#.#', '.#.#.#.#', '.#..##..', '.#......', '.#......',
+           '..#...#.', '...###..', '........', '........'],
+    0xd9: ['........', '....#...', '....#...', '..#.#...', '..#.#...', '..#.#...',
+           '..#.#...', '..#.#..#', '..#.#..#', '..#.#.#.', '..#.#.#.', '.#..##..',
+           '.#..#...', '.#......', '........', '........'],
+}
+
+
+def drawn(code):
+    return [int(r.replace('.', '0').replace('#', '1'), 2) for r in ALIGN_DRAWN[code]]
+
+
+def nec_align(rows, code=None):
+    """Return 8x16 rows with column 0 blank: shift right when column 7 is
+    free, else merge the two most similar adjacent columns into one."""
+    if code in ALIGN_DRAWN:
+        return drawn(code)
+    if not any(r & 0x80 for r in rows):
+        return list(rows)
+    if not any(r & 0x01 for r in rows):
+        return [r >> 1 for r in rows]
+    px = from_rows(rows, 8)
+    cols = [[px[y][x] for y in range(16)] for x in range(8)]
+    # merge cost: rows where the pair differs; prefer inner columns on ties
+    best = min(range(7), key=lambda x: (sum(a != b for a, b in zip(cols[x], cols[x + 1])),
+                                         abs(x - 3)))
+    merged = cols[:best] + [[a | b for a, b in zip(cols[best], cols[best + 1])]] + cols[best + 2:]
+    out = blank()
+    for x, col in enumerate(merged):
+        for y in range(16):
+            out[y][x + 1] = col[y]
+    return to_rows(out)
+
+
+def align_rom(rom):
+    """Apply nec_align to an existing image: ANK 8x16 (and the derived 8x8)
+    and the half-width rows 09h/0Ah, which hold copies of the ANK glyphs."""
+    rom = bytearray(rom)
+    for code in ALIGN_CODES:
+        o = 0x800 + code * 16
+        rows = nec_align(list(rom[o:o + 16]), code)
+        rom[o:o + 16] = bytes(rows)
+        rom[code * 8:code * 8 + 8] = bytes((rows[2 * i] | rows[2 * i + 1]) & 0xff for i in range(8))
+    for ten in range(0x21, 0x7f):
+        for ku, code in ((0x09, ten), (0x0a, 0xa0 + ten - 0x20)):
+            if code >= 0xe0:
+                continue
+            base = 0x1800 + 0xc00 * (ku - 1) + (ten - 0x20) * 32
+            rom[base:base + 16] = rom[0x800 + code * 16:0x800 + code * 16 + 16]
+    return bytes(rom)
+
+
 # ---------------------------------------------------------------- drawing
 def blank(w=8, h=16):
     return [[0] * w for _ in range(h)]
@@ -479,6 +542,8 @@ def build(ank_bdf, kanji_bdf):
     for code in range(0xe0, 0x100):
         ank.setdefault(code, [0] * 16)
     for code, rows in ank.items():
+        if code in ALIGN_CODES:
+            rows = nec_align(rows, code)
         rom[0x800 + code * 16:0x800 + code * 16 + 16] = bytes(r & 0xff for r in rows)
         rom[code * 8:code * 8 + 8] = bytes((rows[2 * i] | rows[2 * i + 1]) & 0xff for i in range(8))
 
@@ -513,7 +578,15 @@ def main():
     p.add_argument('--ank', type=Path, help='8x16 BDF (encodings 00h-FFh)')
     p.add_argument('--kanji', type=Path, help='16x16 JIS X 0208 BDF')
     p.add_argument('-o', '--output', type=Path, default=Path(__file__).resolve().parent.parent / 'build/font.rom')
+    p.add_argument('--align-only', type=Path, metavar='ROM',
+                   help='apply the NEC half-width alignment to an existing font image')
     args = p.parse_args()
+    if args.align_only:
+        rom = align_rom(args.align_only.read_bytes())
+        args.output.parent.mkdir(exist_ok=True)
+        args.output.write_bytes(rom)
+        print(f'{args.output}: {len(rom)} bytes, NEC half-width alignment applied')
+        return 0
     rom, nank, nkanji = build(args.ank, args.kanji)
     args.output.parent.mkdir(exist_ok=True)
     args.output.write_bytes(rom)

@@ -43,8 +43,29 @@ PC-98 code assignment:
   brackets and the dash at 2B70h-2B7Eh are cropped from the full-width glyphs.
 - The 8x8 set is derived from the 8x16 glyphs.
 
+- Printable half-width glyphs (ANK 21h-7Eh, A1h-DFh and their row 09h/0Ah
+  copies) follow NEC's alignment: column 0 is blank and the glyph uses
+  columns 1-7. Games that thicken or shift glyph bits depend on it (Gate of
+  Souls' menu and place names showed dotted traces otherwise). Glyphs that
+  touch column 0 move one pixel right; the few that also use column 7 have
+  their two most similar neighbouring columns merged, and '@' and half-width
+  RU are drawn in seven columns. `mkfont.py --align-only` applies the same
+  step to an existing image.
+
 These are approximations drawn from scratch, not NEC's bitmaps. Gaiji rows
 (76h/77h) start blank, as on real machines.
 
-`tools/build.py --font-from-bootrom <owner boot.rom>` copies NEC's font from
-an owner ROM for **local testing only**. Never commit or distribute that.
+## Your own font
+
+If you own a PC-98 and dumped its font, `tools/own_font.py` puts it into a
+released Open BIOS `boot.rom` for your own use:
+
+```sh
+python tools/own_font.py boot.rom MY_FONT -o boot.rom.myfont
+```
+
+`MY_FONT` is a 288,768-byte NP2 `FONT.ROM`-layout file, or a core `boot.rom`
+holding a font at 40000h. The result contains that font: keep it to yourself.
+
+`tools/build.py --font-from-bootrom <owner boot.rom>` does the same while
+building, for **local testing only**. Never commit or distribute that.

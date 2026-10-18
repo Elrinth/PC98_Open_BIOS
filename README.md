@@ -51,6 +51,11 @@ and Lemmings. See the core's
 
 ## Using it on the MiSTer
 
+The shipped font is a free one (drawn from the Shinonome fonts, aligned like
+NEC's). If you own a PC-98 and dumped its font, `tools/own_font.py` puts your
+own font into the `boot.rom` for your own use; see [docs/FONT.md](docs/FONT.md).
+
+
 1. Download the zip from this repository's
    [Releases](https://github.com/Elrinth/PC98_Open_BIOS/releases) and unzip
    `boot.rom` (or build it, below). It includes the free font.

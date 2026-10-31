@@ -190,7 +190,12 @@ g18_palette:
 g18_draw_mode:
     test byte [PRXCRT], 01h
     jnz .done
+    ; Only the mode byte changes; the display stays as AH=40h/41h left it.
     mov al, GDC_SYNC_OFF
+    test byte [PRXCRT], 80h
+    jz .sync
+    mov al, GDC_SYNC_ON
+.sync:
     call ggdc_cmd
     mov al, [bp+F_CH]
     call ggdc_param

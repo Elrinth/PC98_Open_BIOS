@@ -50,7 +50,8 @@ DISK_RESULT     equ 0564h
 DISK_BOOT       equ 0584h
 CA_TIM_CNT      equ 058Ah
 EXPMMSZ16       equ 0594h   ; MB of RAM above 16 MB
-CRT_BIOS        equ 0597h
+CRT_BIOS        equ 0597h   ; bit 7 31 kHz modes, bit 6 (this BIOS) 31 kHz now,
+                            ; bit 2 PC-9821 CRT BIOS, bits 1-0 graphics screen
 F144_SUP        equ 05AEh
 RS_D_FLAG       equ 05C1h
 KB_CODE_OFF     equ 05C6h

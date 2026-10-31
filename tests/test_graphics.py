@@ -141,6 +141,59 @@ def main():
           and not m2.byte(0x54d) & 0x80)
     out = m2.call_int(0x18, ax=0x300c, bx=0x2200)
     check('30h refuses 30 lines at 400', out['ax'] >> 8 == 0)
+
+    # The Zet98 core (B269 and older) latches 09A8h writes but leaves reads on
+    # the open bus. 31h must report the rate 30h selected: Battle Skin Panic
+    # 9821 read 31 kHz there and set every screen to 31 kHz.
+    m3 = PC98(ROOT / 'build/boot.rom', has_31k=True)
+    m3.port_9a8_read = 0x5d
+    m3.run(until=lambda m: 'No bootable' in m.text_screen(), seconds=3)
+    out = m3.call_int(0x18, ax=0x3100)
+    check('31h boot rate without 09A8h reads', out['ax'] & 0xff == 0x08, hex(out['ax']))
+    m3.call_int(0x18, ax=0x300c, bx=0x2100)
+    out = m3.call_int(0x18, ax=0x3100)
+    check('31h remembers 31 kHz', out['ax'] & 0xff == 0x0c, hex(out['ax']))
+    m3.call_int(0x18, ax=0x3008, bx=0x2100)
+    out = m3.call_int(0x18, ax=0x3100)
+    check('31h remembers 24 kHz', out['ax'] & 0xff == 0x08 and m3.port_9a8 == 0, hex(out['ax']))
+
+    # 30h and 4Ah reprogram SYNC without switching the graphics plane off
+    m3.call_int(0x18, ax=0x4000)
+    m3.call_int(0x18, ax=0x3008, bx=0x2100)
+    check('30h keeps graphics displayed', m3.gdc[1].started)
+    m3.call_int(0x18, ax=0x4100)
+    m3.call_int(0x18, ax=0x3008, bx=0x2100)
+    check('30h keeps graphics stopped', not m3.gdc[1].started)
+    m3.call_int(0x18, ax=0x4000)
+    m3.u.mem_write(0x54c, bytes([m3.byte(0x54c) & 0xfe]))
+    m3.call_int(0x18, ax=0x4a00, cx=0x0200)
+    check('4Ah keeps graphics displayed', m3.gdc[1].started)
+
+    # 640x400 256 colours (4Dh, then 30h): with DIP 2-8 on, 30h itself takes
+    # the 5 MHz graphics layout (pitch 80) and keeps the 256-colour mode
+    # (Battle Skin Panic 9821). 42h never changes the GDC clock: the core
+    # draws 16-colour graphics at 5 MHz with the wrong stride (Windows 95).
+    def pitches(m, start):
+        m.gdc[1].flush()
+        return [p[0] for c, p in m.gdc[1].log[start:] if c == 0x47]
+    for dip, name in ((0x00, 'DIP 2-8 on'), (0x80, 'DIP 2-8 off')):
+        m4 = PC98(ROOT / 'build/boot.rom', has_31k=True)
+        m4.port_31 = dip
+        m4.run(until=lambda m: 'No bootable' in m.text_screen(), seconds=3)
+        check(f'POST GDC clock flag ({name})', (m4.byte(0x54d) & 0x24) == (0x20 if dip == 0 else 0),
+              hex(m4.byte(0x54d)))
+        start = len(m4.gdc[1].log)
+        m4.call_int(0x18, ax=0x4200, cx=0xc000)
+        check(f'42h keeps the GDC clock ({name})', not pitches(m4, start) and not m4.byte(0x54d) & 0x04)
+        m4.call_int(0x18, ax=0x4d00, cx=0x0100)
+        start = len(m4.gdc[1].log)
+        out = m4.call_int(0x18, ax=0x3008, bx=0x2100)
+        if dip == 0:
+            check('30h 640x400 256 colours at 5 MHz', out['ax'] >> 8 == 5 and m4.byte(0x54d) & 0x84 == 0x84
+                  and pitches(m4, start) == [80], (hex(m4.byte(0x54d)), pitches(m4, start)))
+        else:
+            check('30h drops 256 colours at 2.5 MHz', out['ax'] >> 8 == 5 and not m4.byte(0x54d) & 0x84
+                  and pitches(m4, start) == [40], (hex(m4.byte(0x54d)), pitches(m4, start)))
     print('FAILED:' if failures else 'ALL PASS', ', '.join(failures))
     return 1 if failures else 0
 

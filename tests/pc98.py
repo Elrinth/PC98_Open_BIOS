@@ -212,9 +212,9 @@ class GDC:
             self.flush()
             self.cmd = value
             self.params = []
-            if value in (0x0d, 0x6b):
+            if value in (0x0d, 0x6b, 0x0f):     # START, or SYNC with DE set
                 self.started = True
-            elif value in (0x0c, 0x05):
+            elif value in (0x0c, 0x05, 0x0e):   # STOP, or SYNC with DE clear
                 self.started = False
             elif 0x70 <= value <= 0x7f:
                 self.pram_index = value & 15
@@ -492,6 +492,9 @@ class PC98:
         self.port_c = 0xff             # system 8255 port C (reset: FFh)
         self.has_31k = has_31k         # core with the 480-line extension
         self.port_9a8 = 0
+        # Set to a byte to model a core that latches 09A8h writes but leaves
+        # reads on the open bus (Zet98 B269 and older).
+        self.port_9a8_read = None
         self.cpu_resets = 0
         self.beep = False
         self.port_31 = 0x80          # DIP switch 2 as the core reports it (GDC 2.5 MHz)
@@ -662,6 +665,8 @@ class PC98:
         if port == 0xa0:
             return self.gdc[1].status(self.now)
         if port == 0x9a8:
+            if self.port_9a8_read is not None:
+                return self.port_9a8_read
             return self.port_9a8 if self.has_31k else 0xff
         if port in (0x5c, 0x5e):
             ticks = int(self.now / 3.26e-6)

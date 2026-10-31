@@ -33,6 +33,12 @@ int18_entry:
     push es
     pusha
     mov bp, sp
+%ifdef DBG18
+    push ax
+    mov al, 0
+    call dbg18_rec
+    pop ax
+%endif
     xor bx, bx
     mov ds, bx
     mov bl, ah
@@ -41,6 +47,10 @@ int18_entry:
     add bx, bx
     call [cs:int18_table+bx]
 .done:
+%ifdef DBG18
+    mov al, 1
+    call dbg18_rec
+%endif
     popa
     pop es
     pop ds
@@ -82,6 +92,98 @@ INT18_COUNT equ ($-int18_table)/2
 
 k18_nop:
     ret
+
+%ifdef DBG18
+; Debug builds only (-D DBG18): log INT 18h entry (AL=0) and exit (AL=1) into
+; a 4096-record ring in extended memory at 01E00000h (A20 stays out of the
+; address; on the Zet98 core the host reads it from DDR at 0x30000000 +
+; physical). Header: dword count, dword 'DB18'. Record: dword sequence, tag,
+; PRXDUPD, AX, BX, CX, caller IP, CRT_BIOS, PEGC flags (port 09A0h indexes
+; 0Ah/0Dh/04h/03h and the GDC clock bit). Uses unreal mode, so it faults
+; under V86 memory managers (EMM386, VEMM): real-mode software only.
+DBG18_BASE      equ 01E00000h
+dbg18_rec:
+    pushf
+    cli
+    push eax
+    push ebx
+    push edi
+    push fs
+    push gs
+    push ax
+    call enter_unreal
+    pop ax
+    mov edi, DBG18_BASE
+    cmp dword [fs:edi+4], 'DB18'
+    je .counted
+    mov dword [fs:edi], 0
+    mov dword [fs:edi+4], 'DB18'
+.counted:
+    mov ebx, [fs:edi]
+    inc dword [fs:edi]
+    push ebx
+    and ebx, 0FFFh
+    shl ebx, 4
+    lea edi, [edi+ebx+16]
+    pop ebx
+    mov [fs:edi], ebx
+    mov [fs:edi+4], al
+    mov bl, [fs:PRXDUPD]
+    mov [fs:edi+5], bl
+    mov bx, [bp+F_AX]
+    mov [fs:edi+6], bx
+    mov bx, [bp+F_BX]
+    mov [fs:edi+8], bx
+    mov bx, [bp+F_CX]
+    mov [fs:edi+10], bx
+    mov bx, [bp+20]
+    mov [fs:edi+12], bx
+    mov bl, [fs:CRT_BIOS]
+    mov [fs:edi+14], bl
+    ; PEGC status (port 09A0h index): bit 0 mode256 (0Ah), bit 1 single
+    ; page (0Dh), bit 2 analog (04h), bit 3 display (03h), bit 4 GDC 5 MHz
+    push dx
+    push ax
+    xor bl, bl
+    mov dx, 09A0h
+    mov al, 0Dh
+    out dx, al
+    in al, dx
+    and al, 1
+    shl al, 1
+    or bl, al
+    mov al, 04h
+    out dx, al
+    in al, dx
+    and al, 1
+    shl al, 2
+    or bl, al
+    mov al, 03h
+    out dx, al
+    in al, dx
+    and al, 1
+    shl al, 3
+    or bl, al
+    mov al, 0Ah
+    out dx, al
+    in al, dx
+    mov ah, al
+    and al, 1
+    or bl, al
+    and ah, 2
+    shl ah, 3
+    or bl, ah
+    mov [fs:edi+15], bl
+    pop ax
+    pop dx
+    pop gs
+    pop fs
+    pop edi
+    pop ebx
+    pop eax
+    popf
+    ret
+%endif
 
 ; ---------------------------------------------------------------- keyboard
 ; Dequeue one key into AX (returns CF=1 and AX unchanged if empty). DS=0.

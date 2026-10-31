@@ -510,9 +510,15 @@ g18_set_31k:
     mov di, 1
     mov cx, 2
 .slave_mode:
+    ; 640x400 uses the 5 MHz graphics layout (pitch 80) when the GDC runs at
+    ; 5 MHz (bit 2) or DIP 2-8 allows it (bit 5); only that layout keeps the
+    ; 256-colour mode. NEC's BIOS (NP2kai bios0x18_30) checks bit 2 alone and
+    ; relies on AH=42h having switched the clock. Switching there would also
+    ; move 16-colour software such as the Windows 95 EGC driver to 5 MHz,
+    ; which the Zet98 core draws with the wrong line stride.
     test ah, 20h
     jz .ext_off
-    test byte [PRXDUPD], 04h
+    test byte [PRXDUPD], 24h
     jz .ext_off
     inc cx
     jmp .program
@@ -524,12 +530,17 @@ g18_set_31k:
     and bl, 3
     xor bh, bh
     add si, bx                     ; CRT row
-    ; 31 kHz select
+    ; 31 kHz select, remembered in CRT_BIOS bit 6 for AH=31h
     push ax
     mov dx, PORT_31K
     shr al, 2
     and al, 1
     out dx, al
+    and byte [CRT_BIOS], 0BFh
+    test al, al
+    jz .rate24_set
+    or byte [CRT_BIOS], 40h
+.rate24_set:
     ; text GDC: SYNC, scroll, pitch, cursor form
     mov al, GDC_SYNC_OFF
     call tgdc_cmd
@@ -580,8 +591,14 @@ g18_set_31k:
     out CRTC_SUR, al
     xor al, al
     out CRTC_SDR, al
-    ; graphics GDC
+    ; graphics GDC: SYNC keeps the AH=40h/41h display state (PRXCRT bit 7),
+    ; as NP2kai's bios0x18_30 does. Battle Skin Panic 9821 switches from
+    ; 640x480 to 640x400 with this call and never restarts the display.
     mov al, GDC_SYNC_OFF
+    test byte [PRXCRT], 80h
+    jz .gsync
+    mov al, GDC_SYNC_ON
+.gsync:
     call ggdc_cmd
     mov si, cx
     shl si, 3
@@ -715,11 +732,15 @@ pegc_extend_off:
 g18_get_31k:
     test byte [CRT_BIOS], 80h
     jz .done
-    mov dx, PORT_31K
-    in al, dx
-    and al, 1
-    shl al, 2
-    or al, 08h
+    ; The rate AH=30h last selected (CRT_BIOS bit 6), not a port 09A8h read:
+    ; the Zet98 core (B269 and older) does not answer reads of that port, so
+    ; the CPU saw open bus. Battle Skin Panic 9821 then got 31 kHz here and
+    ; programmed every screen at 31 kHz (a black 480-line display).
+    mov al, 08h
+    test byte [CRT_BIOS], 40h
+    jz .rate
+    mov al, 0Ch
+.rate:
     mov [bp+F_AL], al
     mov al, [CRT_BIOS]
     and al, 3

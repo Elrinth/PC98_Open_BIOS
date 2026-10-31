@@ -6,6 +6,14 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-10-31](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-31):**
+Battle Skin Panic 9821 runs: its 640x400 256-colour screens no longer go
+black after the GAINAX logo. INT 18h AH=31h now reports the rate AH=30h
+selected instead of reading port 09A8h (which the core does not answer yet);
+AH=30h keeps the 256-colour mode by using the 5 MHz graphics layout when
+DIP 2-8 allows 5 MHz; AH=30h/4Ah no longer switch the graphics display off.
+256-colour games of this kind need the core's DIP 2-8 (GDC clock) at 5 MHz.
+
 **Release [2026-10-18.2](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-18.2):**
 Text now looks much more like a real PC-98. The free font's half-width characters
 are fitted to character dimensions measured on screenshots of real PC-98 text

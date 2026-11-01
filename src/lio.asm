@@ -1,5 +1,7 @@
-; LIO - the PC-98 graphics BIOS (INT A0h-AFh), in the E800h bank where NEC
-; machines keep it (inside the N88-BASIC ROM area).
+; LIO - the PC-98 graphics BIOS (INT A0h-AFh), in the F800h bank behind its
+; F990:0000 directory. Not in the N88-BASIC area at E8000h: VEM486 /U maps
+; E8000h-F3FFFh as upper memory, and games then crashed on their first LIO
+; call (Sex 2's sound selection, Tokimeki Bishoujo).
 ;
 ; Callers pass DS = their work segment (LIO keeps its state at DS:0620h and
 ; the palette mode at DS:0A08h) and DS:BX -> a parameter block. Returns

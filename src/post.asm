@@ -296,8 +296,8 @@ init_vectors:
     loop .set
     mov word [es:1Eh*4], basic_entry
     mov word [es:1Eh*4+2], SEG_E800
-    ; INT A0h-AFh: LIO graphics BIOS in the E800h bank
-    mov ax, SEG_E800
+    ; INT A0h-AFh: LIO graphics BIOS in the F800h bank
+    mov ax, SEG_F800
     mov ds, ax
     mov si, lio_vectors
     mov di, 0A0h*4

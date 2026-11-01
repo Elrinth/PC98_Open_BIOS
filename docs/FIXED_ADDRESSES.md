@@ -11,7 +11,7 @@ kept compatible:
 | FD80:0E00 | 8 key tables of 60h bytes | also published through 05C6h; some software reads them directly |
 | F8E8:0000-003F | PC-9821 feature table (98h 21h ...) | PC-9821 identification |
 | INT 1Ah vector + 19h | printer body entered with DS, DX pushed | MS-DOS IO.SYS hooks INT 1Ah by jumping to the original vector + 19h |
-| E800:xxxx | LIO entry points (INT A0h-AFh) | NEC keeps LIO in the E800h (BASIC) area |
+| F800:xxxx | LIO entry points (INT A0h-AFh), behind the F990:0050+8n stubs | not in the E800h (BASIC) area: VEM486 /U maps E8000h-F3FFFh as upper memory without testing it, so LIO there crashed games under it |
 | F990:0000 | LIO directory: count 11h, then {INT, 0, offset} for A0h-AFh and CEh, entry stubs at F990:0050+8n | MS-DOS locates the LIO through it; without it LIO calls end in IO.SYS's "invalid interrupt" message (E.V.O.) |
 | F800:xxxx | 2HD/2DD parameter tables via 05F8h/05CCh | INT 1Bh reads EOT/GPL through these pointers, so software can replace them |
 

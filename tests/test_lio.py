@@ -189,6 +189,18 @@ def main():
     st, _ = lio.call(4, bytes([1, 4, 0]))
     check('GCOLOR2 digital', st == 0 and (m.digital_pal[1] >> 4) & 7 == 4, [hex(v) for v in m.digital_pal])
 
+    # VEM486 /U maps E8000h-F3FFFh as upper memory without testing it, so LIO
+    # must not live there. Overwrite the range as a UMB would, then call LIO
+    # through POST's vectors and through the F990:0050+8n stubs MS-DOS installs.
+    m.u.mem_write(0xe8000, bytes([0xcc]) * 0xc000)
+    lio.call(5)
+    st, _ = lio.call(6, w(200, 120) + bytes([3]))
+    check('LIO with E8000h-F3FFFh overwritten (POST vectors)', st == 0 and colour_at(m, 200, 120) == 3, st)
+    for n in range(16):
+        m.u.mem_write((0xa0 + n) * 4, struct.pack('<HH', 0x50 + n * 8, 0xf990))
+    st, al = lio.call(15, w(200, 120))
+    check('LIO with E8000h-F3FFFh overwritten (F990 directory stubs)', st == 0 and al == 3, (st, al))
+
     print('FAILED:' if failures else 'ALL PASS', ', '.join(failures))
     return 1 if failures else 0
 

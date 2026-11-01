@@ -4,9 +4,12 @@
 ; The 96 KiB image is mapped at E8000h-FFFFFh as three 32 KiB banks. Each
 ; bank is its own NASM section whose labels are offsets in that segment:
 ;
-;   bank_e800  E8000h-EFFFFh  segment E800h  N88-BASIC stub (INT 1Eh), spare
+;   bank_e800  E8000h-EFFFFh  segment E800h  N88-BASIC (INT 1Eh)
 ;   bank_f000  F0000h-F7FFFh  segment F000h  POST and boot (run once)
-;   bank_f800  F8000h-FFFFFh  segment F800h  resident services, reset vector
+;   bank_f800  F8000h-FFFFFh  segment F800h  resident services, LIO, reset vector
+;
+; Code that DOS programs call stays at F4000h and above: VEM486 /U maps
+; E8000h-F3FFFh as upper memory without testing it.
 ;
 ; bank_f800 is also packed as the ITF bank, so switching the ITF off at
 ; F8000h changes nothing. Fixed addresses that PC-98 software relies on are
@@ -32,7 +35,6 @@ section bank_f800 start=10000h vstart=0
 section bank_e800
 e800_start:
 %include "basic/basic.asm"
-%include "lio.asm"
     times 8000h-($-$$) db 0FFh
 
 ; ---------------------------------------------------------------- F000 bank
@@ -77,7 +79,7 @@ lio_directory:
 %assign lio_n 0
 %rep 16
     sti
-    jmp SEG_E800:lio_vec_ %+ lio_n
+    jmp SEG_F800:lio_vec_ %+ lio_n
     nop
     nop
 %assign lio_n lio_n + 1
@@ -87,6 +89,7 @@ lio_directory:
 %include "int1c.asm"
 %include "int1b.asm"
 %include "misc_int.asm"
+%include "lio.asm"
 ; INT 1Bh private stack and its saved caller SS:SP (see int1b.asm); this
 ; bank is writable SDRAM on the core.
     times FD80-100h-($-$$) db 0FFh

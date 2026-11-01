@@ -6,6 +6,14 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-11-01](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-01):**
+Games on ready-made hard disks that load `VEM486.EXE /U` no longer crash on
+their first LIO graphics call: Sex 2 stopped with VEM486's general protection
+error right after the mouse driver line, and Tokimeki Bishoujo hung there.
+VEM486 /U maps E8000h-F3FFFh as upper memory without testing it, and the LIO
+code (INT A0h-AFh) sat in that range; it now lives in the F800h bank behind
+its F990h directory.
+
 **Release [2026-10-31](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-10-31):**
 Battle Skin Panic 9821 runs: its 640x400 256-colour screens no longer go
 black after the GAINAX logo. INT 18h AH=31h now reports the rate AH=30h

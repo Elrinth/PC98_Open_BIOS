@@ -82,6 +82,15 @@ boot_restart:
     mov ss, ax
     mov sp, 7C00h
     sti
+    ; Boot with an empty text screen, as NEC's BIOS does: Sorcerian never
+    ; clears it and showed the POST banner over its graphics.
+    pushad
+    push es
+    mov dx, 0E120h                 ; space, white attribute
+    mov ah, 16h
+    int 18h
+    pop es
+    popad
     ; Automatic order: extension ROMs first pass (the disk ROM boots a valid
     ; hard disk here), then floppies, then an explicit hard-disk request.
     mov al, 01h

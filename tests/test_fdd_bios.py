@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """INT 1Bh floppy services against image contents (read, multi-sector,
 multi-track, read ID, sense, write, errors)."""
+import struct
 import sys
 from pathlib import Path
 from unicorn import UC_HOOK_CODE
@@ -95,6 +96,32 @@ def stale_virtual_tc():
               not out['cf'] and actual == want, hex(out['ax']))
 
 
+def nec_irq_handler():
+    """A game's own NEC-style FDC interrupt handler (Sorcerian installs one as
+    INT 12h) takes the FDC's interrupt status: it reads a data command's
+    result phase, or issues SENSE INTERRUPT after a seek, into the work area
+    and sets the unit's flag. INT 1Bh must then use the work area."""
+    sys.path.insert(0, str(ROOT / 'tools'))
+    from build import nasm
+    out_bin = ROOT / 'build' / 'nec_fdc_irq.bin'
+    nasm(ROOT / 'tests' / 'nec_fdc_irq.asm', out_bin)
+    m = machine()
+    m.u.mem_write(0x7400, out_bin.read_bytes())
+    m.u.mem_write(0x13 * 4, struct.pack('<HH', 0x7400, 0))     # INT 13h: 1 MB interface FDC
+    disk = m.fdc.drives[0]
+    track = lambda c, h: b''.join(bytes(s.data) for s in sorted(disk.tracks[(c, h)], key=lambda s: s.r))
+    out = m.call_int(0x1b, ax=0x0790)
+    check('NEC-style handler: recalibrate', not out['cf'], hex(out['ax']))
+    for c, h, r, count in [(0, 0, 1, 1), (5, 1, 3, 4), (40, 0, 7, 2), (0, 0, 2, 3)]:
+        out, data = read(m, c, h, r, 3, count * 1024)           # AH=56h: seek, then read
+        want = track(c, h)[(r - 1) * 1024:(r - 1 + count) * 1024]
+        check(f'NEC-style handler: seek + read C{c} H{h} R{r} x{count}', not out['cf'] and data == want,
+              f"ah={out['ax'] >> 8:02x}")
+    out, data = read(m, 0, 0, 30, 3, 1024)
+    check('NEC-style handler: missing sector still fails', out['cf'] and out['ax'] >> 8 in (0xc0, 0xe0),
+          hex(out['ax']))
+
+
 def main():
     m = machine()
     disk = m.fdc.drives[0]
@@ -183,6 +210,7 @@ def main():
         check('virtual DMA reset before each transfer', len(pointer_resets) == 4)
         check('virtual DMA command preserved', virtual.dma.command == 0x40)
     stale_virtual_tc()
+    nec_irq_handler()
     print('FAILED:' if failures else 'ALL PASS', ', '.join(failures))
     return 1 if failures else 0
 

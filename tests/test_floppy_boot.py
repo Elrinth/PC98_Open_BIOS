@@ -24,6 +24,12 @@ def main():
     m.trace_ints = True
     booted = lambda m: any(pc < 0xe8000 and v == 0x1b for v, ax, pc in m.int_log[-50:]) and \
         m.byte(0x584) in (0x90, 0x91, 0x70, 0x71) and m.linear_pc() < 0xd0000
+    # The POST banner must be gone when the IPL runs (NEC's BIOS boots with an
+    # empty text screen): Sorcerian never clears it and showed the banner over
+    # its graphics. The run stops in blocks, so the IPL may have printed already.
+    m.run(seconds=args.seconds, until=lambda m: 0x1fc00 <= m.linear_pc() < 0x20000)
+    clean = 'Zet98-486' not in m.text_screen()
+    print('POST banner at the IPL:', 'gone' if clean else 'still shown')
     m.run(seconds=args.seconds)
     print(m.text_screen())
     print(f'--- {m.now:.2f}s {m.instructions} instr, DA/UA {m.byte(0x584):02x}, pc {m.linear_pc():#x}')
@@ -31,7 +37,7 @@ def main():
     print('INT 1Bh calls by AH:', {f'{k:02x}': n for k, n in fd.items()})
     print('FDC commands:', [c.hex() for c in m.fdc.log[:12]], '...', len(m.fdc.log))
     ipl = any(pc >= 0x1fc00 and pc < 0x20000 for v, ax, pc in m.int_log) or m.fdc.log
-    ok = 'No bootable disk' not in m.text_screen() and m.byte(0x584) in (0x90, 0x91, 0x70, 0x71) and any(v == 0x1b and pc < 0xd0000 for v, ax, pc in m.int_log)
+    ok = clean and 'No bootable disk' not in m.text_screen() and m.byte(0x584) in (0x90, 0x91, 0x70, 0x71) and any(v == 0x1b and pc < 0xd0000 for v, ax, pc in m.int_log)
     print('PASS' if ok else 'FAIL', 'floppy boot')
     return 0 if ok else 1
 

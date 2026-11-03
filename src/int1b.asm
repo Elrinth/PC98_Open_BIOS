@@ -31,7 +31,8 @@ L_IMR           equ -10         ; saved slave IMR
 L_ST            equ -18         ; 7 result bytes (ST0 ST1 ST2 C H R N)
 L_DMA           equ -19         ; 1 armed, 2 stopped at terminal count
 L_SEEK          equ -20         ; 1 while waiting for a seek
-L_SIZE          equ 20
+L_WA            equ -21         ; 1: an IRQ handler took the result phase (NEC work area)
+L_SIZE          equ 22
 
 ; Loaders call the disk BIOS on whatever stack they have, and some have very
 ; little: Metal Orange's PRECO-IPL keeps its sector table 58 bytes below its
@@ -120,6 +121,7 @@ int1b_body:
 .floppy:
     mov [bp+L_TYPE], ah
     mov word [bp+L_SEEK], 0        ; L_SEEK and L_DMA
+    mov byte [bp+L_WA], 0
     mov al, DISK_NOT_READY
     test byte [bp+F_AL], 02h       ; only units 0 and 1 exist; commands on
     jnz .status                    ; units 2/3 can wedge the core's FDC
@@ -384,6 +386,19 @@ fd_wait_irq:
     and al, 0D0h
     cmp al, 0D0h
     je .ok
+    ; NEC's FDC interrupt handler reads the result phase into the work area
+    ; and then sets the flag; games install copies of it (Sorcerian's INT 12h).
+    ; With the flag set and the FDC idle, the results are in the work area.
+    cmp al, 80h
+    jne .time
+    push ds
+    xor ax, ax
+    mov ds, ax
+    test [di], dh
+    pop ds
+    jz .time
+    mov byte [bp+L_WA], 1
+    jmp .ok
 .time:
     call fd_now
     sub ax, bx
@@ -467,12 +482,35 @@ fd_wait_result:
     mov byte [bp+L_SEEK], 0
     jmp fd_wait_irq
 
-; Read up to 7 result bytes into L_ST.
+; Read up to 7 result bytes into L_ST (from NEC's work area when an
+; interrupt handler already read them: 640 KB interface 05D0h, 1 MB
+; interface 0564h + 8 * unit).
 fd_results:
     push cx
     push di
     lea di, [bp+L_ST]
     mov cx, 7
+    cmp byte [bp+L_WA], 0
+    je .next
+    push si
+    push ds
+    xor si, si
+    mov ds, si
+    mov si, 05D0h
+    test byte [bp+L_TYPE], 01h
+    jz .copy
+    mov si, [bp+L_UNIT]
+    and si, 03h
+    shl si, 3
+    add si, DISK_RESULT
+.copy:
+    lodsb
+    mov [ss:di], al
+    inc di
+    loop .copy
+    pop ds
+    pop si
+    jmp .end
 .next:
     call fd_in
     jc .end
@@ -504,7 +542,7 @@ fd_wait_seek:
     jc .fail
     mov cl, al
     cmp al, 80h                    ; no interrupt pending
-    je .retry
+    je .handler
     call fd_in
     mov ah, al
     mov al, cl
@@ -525,6 +563,49 @@ fd_wait_seek:
     pop si
     pop cx
     ret
+.handler:
+    ; NEC's FDC interrupt handler (also as a game's own INT 12h/13h) issues
+    ; SENSE INTERRUPT itself and keeps ST0 and PCN in the work area (640 KB
+    ; interface 05D8h + 2 * unit, 1 MB interface 0564h + 8 * unit), with the
+    ; unit's flag set. Use them when this unit's flag is set.
+    push bx
+    push ds
+    xor bx, bx
+    mov ds, bx
+    mov bl, [bp+L_UNIT]
+    and bx, 03h
+    mov cl, bl
+    test byte [bp+L_TYPE], 01h
+    jnz .wa_1m
+    mov ch, 10h
+    shl ch, cl
+    test [DISK_INTH], ch
+    jz .wa_none
+    add bx, bx
+    mov ax, [05D8h+bx]             ; AL = ST0, AH = PCN
+    jmp .wa_check
+.wa_1m:
+    mov ch, 01h
+    shl ch, cl
+    test [DISK_INTL], ch
+    jz .wa_none
+    shl bx, 3
+    mov ax, [DISK_RESULT+bx]
+.wa_check:
+    pop ds
+    pop bx
+    mov ch, [bp+L_UNIT]
+    xor ch, al
+    test ch, 03h
+    jnz .retry
+    test al, 20h                   ; SE
+    jz .retry
+    clc
+    jmp .done
+.wa_none:
+    pop ds
+    pop bx
+    jmp .retry
 
 ; Drain pending interrupt status (after a reset or a stray seek).
 fd_drain:

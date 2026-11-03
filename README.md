@@ -6,6 +6,31 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-11-03](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-03):**
+Games that install their own NEC-style floppy interrupt handler no longer fail
+their disk BIOS reads. Such a handler takes the FDC's result bytes into the BIOS
+work area itself (0564h for the 1 MB interface, 05D0h for the 640 KB one) and
+sets the drive's flag (055Eh/055Fh). INT 1Bh then waited for results the
+controller no longer had. It now takes the results, and a seek's ST0 and PCN,
+from the work area when the handler has already collected them. Sorcerian
+(Falcom) gets past its loader to the title and the main menu.
+[`tests/nec_fdc_irq.asm`](tests/nec_fdc_irq.asm) is such a handler for
+`tests/test_fdd_bios.py`.
+
+The text screen is now cleared before each boot attempt, as on NEC machines:
+games that never clear it showed the "Open PC-98 BIOS" line over their
+graphics (Sorcerian). `tests/test_floppy_boot.py` checks that the line is gone
+when the boot sector runs.
+
+A bootable floppy now starts before the hard disk, as on NEC machines. Games
+installed to a hard disk often ship their own boot disk ("put the boot disk in
+drive A and reset": Lunatic Dawn, Trouble Outsiders and others); the BIOS
+offered the hard disk to the disk ROM first, so that disk was never used while
+a hard disk was mounted. Empty floppy drives report Not Ready at once, so a
+hard disk without a floppy boots as before.
+[`tests/test_boot_order.py`](tests/test_boot_order.py) boots a VHD with and
+without a floppy in drive 1.
+
 **Release [2026-11-01](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-01):**
 Games on ready-made hard disks that load `VEM486.EXE /U` no longer crash on
 their first LIO graphics call: Sex 2 stopped with VEM486's general protection

@@ -6,6 +6,16 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-11-03.1](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-03.1):**
+A floppy's boot sector now starts on NEC's boot stack, SS:SP = 0030:00FA, just
+below the BIOS work area. The BIOS used its own stack under 7C00h, where boot
+loaders put their programs: Dinosaur (Falcom) reads its first file to
+0000:1000 and up, over the return address of its own INT 1Bh call, which then
+came back to 0000:0000 and the screen stayed black after the loader. NEC's
+values were measured in NP2kai with NEC's BIOS. Dinosaur now reaches its title
+and opening. [`tests/test_ipl_stack.py`](tests/test_ipl_stack.py) boots a
+floppy whose boot sector records the stack it was started on.
+
 **Release [2026-11-03](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-03):**
 Games that install their own NEC-style floppy interrupt handler no longer fail
 their disk BIOS reads. Such a handler takes the FDC's result bytes into the BIOS

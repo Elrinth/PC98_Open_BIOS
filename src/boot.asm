@@ -91,11 +91,14 @@ boot_restart:
     int 18h
     pop es
     popad
-    ; Automatic order: extension ROMs first pass (the disk ROM boots a valid
-    ; hard disk here), then floppies, then an explicit hard-disk request.
+    ; Floppies first, as NEC machines do: a game's own boot disk starts it
+    ; even with a hard disk attached ("boot disk in drive A, then reset").
+    ; Empty drives report Not Ready at once. Then the extension ROMs' first
+    ; pass (the disk ROM boots a valid hard disk here) and an explicit
+    ; hard-disk request.
+    call floppy_boot
     mov al, 01h
     call extrom_boot_rom
-    call floppy_boot
     mov al, 0Ah
     call extrom_boot_rom
     int 1Eh                        ; no system: ROM-BASIC stub

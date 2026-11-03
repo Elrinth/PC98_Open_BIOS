@@ -226,6 +226,14 @@ floppy_try:
     or ax, 0003h
 .equip:
     mov [DISK_EQUIP], ax
+    ; Enter the IPL on NEC's boot stack, SS:SP = 0030:00FA, just below the
+    ; work area. The boot stack under 7C00h lies where IPLs load programs:
+    ; Dinosaur reads its first file to 0000:1000 and up, over the return
+    ; address of its INT 1Bh call, which then came back to 0000:0000.
+    cli
+    mov ax, 0030h
+    mov ss, ax
+    mov sp, 00FAh
     push di
     push word 0
     mov al, [DISK_BOOT]

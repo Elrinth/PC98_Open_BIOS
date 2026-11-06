@@ -22,6 +22,7 @@ def main():
         'INT 18h vector in F800': m.word(0x18*4+2) == 0xf800,
         'keyboard buffer head': m.word(0x524) == 0x502,
         'memory switch 1': m.byte(0xa3fe2) == 0x48,
+        'port C: RS-232C RXRE on, TXEE/TXRE off': m.port_c & 0x07 == 0x01,
     }
     # Shutdown resume: SHUT0 = 0, SS:SP at 0404h, CPU reset through F0h.
     # The BIOS must far-return through that stack without touching the PICs.

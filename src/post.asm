@@ -57,6 +57,13 @@ cold_start:
     out SYS_CTRL, al
     mov al, 0Bh
     out SYS_CTRL, al
+    ; RS-232C transmit interrupts off (TXEE, TXRE), RXRE on: port C F9h as NEC's
+    ; BIOS leaves it. Port C resets to FFh, and on cores whose 8251 runs from PIT
+    ; channel 2 an idle transmitter would otherwise hold IR4 from the start.
+    mov al, 02h
+    out SYS_CTRL, al
+    mov al, 04h
+    out SYS_CTRL, al
 
     call post_banner
     call extrom_scan

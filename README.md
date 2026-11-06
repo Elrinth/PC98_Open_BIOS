@@ -6,6 +6,25 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-11-05](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-05):**
+Interrupts that arrive while the disk BIOS waits for the floppy controller now
+run on the program's own stack, as under NEC's BIOS, which never leaves it.
+INT 1Bh has run its requests on a private stack since 2026-10-02, because Metal
+Orange's boot loader keeps a table just below its stack pointer. Timer, sound
+and VSYNC interrupts during the waits ran on that stack too. Diable de Laplace's
+timer handler reads its jump targets through SS, so it jumped into data and the
+screen filled with a dither pattern after the title. INT 1Bh now moves to the
+caller's stack for its waits and takes no interrupts anywhere else. The caller's
+stack then holds at most 30 bytes of the request and an interrupt, and Metal
+Orange leaves 58 free. Laplace reaches its main menu and Metal Orange its game.
+[`tests/test_int1b_stack.py`](tests/test_int1b_stack.py) chains probes
+([`tests/irq_stack_probe.asm`](tests/irq_stack_probe.asm)) in front of the FDC
+and VSYNC interrupts and checks the stack they find.
+
+POST now leaves the RS-232C transmit interrupts off (port 35h bits 1-2), as
+NEC's BIOS does. Core B280 clocks the 8251 from PIT channel 2, and its idle
+transmitter would otherwise hold IR4 from power-on.
+
 **Release [2026-11-03.1](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-03.1):**
 A floppy's boot sector now starts on NEC's boot stack, SS:SP = 0030:00FA, just
 below the BIOS work area. The BIOS used its own stack under 7C00h, where boot

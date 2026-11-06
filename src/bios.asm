@@ -90,8 +90,8 @@ lio_directory:
 %include "int1b.asm"
 %include "misc_int.asm"
 %include "lio.asm"
-; INT 1Bh private stack and its saved caller SS:SP (see int1b.asm); this
-; bank is writable SDRAM on the core.
+; INT 1Bh private stack, its saved caller SS:SP and the request state (see
+; int1b.asm); this bank is writable SDRAM on the core.
     times FD80-100h-($-$$) db 0FFh
 int1b_caller_sp:
     dw 0
@@ -99,6 +99,10 @@ int1b_caller_ss:
     dw 0
 int1b_scratch:
     dw 0, 0
+int1b_private_sp:                       ; SP of the private stack during an interrupt window
+    dw 0
+int1b_busy:                             ; 1 while a request runs on the private stack
+    db 0
     times FD80-($-$$) db 0
 int1b_stack_top:
     times FD80-($-$$) db 0FFh

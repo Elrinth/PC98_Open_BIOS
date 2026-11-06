@@ -24,6 +24,9 @@ cold_start:
     mov dx, ITF_BANK
     mov al, 12h
     out dx, al
+    mov ax, SEG_F800
+    mov es, ax
+    mov byte [es:int1b_busy], 0    ; a reset during a disk request left it set
     xor ax, ax
     mov ss, ax
     mov sp, 0600h                  ; interim stack inside the vector area

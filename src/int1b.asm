@@ -32,6 +32,7 @@ L_ST            equ -18         ; 7 result bytes (ST0 ST1 ST2 C H R N)
 L_DMA           equ -19         ; 1 armed, 2 stopped at terminal count
 L_SEEK          equ -20         ; 1 while waiting for a seek
 L_WA            equ -21         ; 1: an IRQ handler took the result phase (NEC work area)
+L_WIN           equ -22         ; 1: an interrupt window moved to the caller's stack
 L_SIZE          equ 22
 
 ; Loaders call the disk BIOS on whatever stack they have, and some have very
@@ -40,17 +41,24 @@ L_SIZE          equ 22
 ; nested calls) and overwrote the table's sector count. Requests therefore run
 ; on a private stack in this bank (boot.rom is writable SDRAM on the core,
 ; docs/CORE_HARDWARE.md); the caller's stack holds only its IRET frame and a
-; word. A call made while already on it, from an interrupt during a request,
-; runs in place.
+; word. Such a request takes interrupts only while it waits for the FDC, and
+; then on the caller's stack (FD_IRQ_WINDOW_OPEN): NEC's BIOS never leaves
+; the caller's stack, and game handlers depend on the interrupted SS (Laplace
+; no Ma's timer handler reads jump targets through SS and jumped into data
+; when it interrupted a read on this stack). A call made from an interrupt
+; during a request runs in place.
 int1b_entry:
     push ax
     mov ax, ss
     cmp ax, SEG_F800
     pop ax
     je int1b_body
+    cmp byte [cs:int1b_busy], 0
+    jne int1b_body
     cli
     mov [cs:int1b_caller_sp], sp
     mov [cs:int1b_caller_ss], ss
+    mov byte [cs:int1b_busy], 1
     push cs
     pop ss
     mov sp, int1b_stack_top
@@ -58,6 +66,8 @@ int1b_entry:
     mov [cs:int1b_scratch+2], ds
     lds si, [cs:int1b_caller_sp]
     push word [si+4]                ; the caller's FLAGS (result CF is set in it)
+    mov si, sp
+    and byte [ss:si+1], 0FCh        ; IF, TF: the body's IRET must not take an interrupt here
     push cs
     push word int1b_exit
     lds si, [cs:int1b_scratch]
@@ -67,6 +77,7 @@ int1b_entry:
 ; frame and return on its own stack.
 int1b_exit:
     cli
+    mov byte [cs:int1b_busy], 0
     mov ss, [cs:int1b_caller_ss]
     mov sp, [cs:int1b_caller_sp]
     push bp
@@ -81,7 +92,13 @@ int1b_exit:
     iret
 
 int1b_body:
+    push ax
+    mov ax, ss
+    cmp ax, SEG_F800
+    pop ax
+    je .private                    ; interrupts only in the waits
     sti
+.private:
     cld
     push ds
     push es
@@ -121,7 +138,7 @@ int1b_body:
 .floppy:
     mov [bp+L_TYPE], ah
     mov word [bp+L_SEEK], 0        ; L_SEEK and L_DMA
-    mov byte [bp+L_WA], 0
+    mov word [bp+L_WIN], 0         ; L_WIN and L_WA
     mov al, DISK_NOT_READY
     test byte [bp+F_AL], 02h       ; only units 0 and 1 exist; commands on
     jnz .status                    ; units 2/3 can wedge the core's FDC
@@ -290,19 +307,60 @@ fd_irq_bit:
 .done:
     ret
 
+; Interrupt windows (fd_flush_irq, fd_wait_irq). A request on the private
+; stack moves to the caller's stack for them, so handlers find the stack they
+; would find under NEC's BIOS. The caller's stack then holds its IRET frame,
+; at most 4 bytes of the wait loop and the handler's own use (int13_fdd_irq:
+; 26 bytes with its frame), inside the 58 bytes Metal Orange's PRECO-IPL
+; leaves free. OPEN: interrupts on, ES = segment of the BP frame (the locals
+; are addressed ES:BP in the window). CLOSE: interrupts off, back on the
+; request's stack, ES unchanged. Both use AX and the flags.
+%macro FD_IRQ_WINDOW_OPEN 0
+    mov ax, ss
+    mov es, ax
+    cmp ax, SEG_F800
+    jne %%sti
+    cmp byte [cs:int1b_busy], 0
+    je %%sti
+    mov byte [bp+L_WIN], 1
+    mov [cs:int1b_private_sp], sp
+    mov ss, [cs:int1b_caller_ss]
+    mov sp, [cs:int1b_caller_sp]
+%%sti:
+    sti
+%endmacro
+
+%macro FD_IRQ_WINDOW_CLOSE 0
+    cli
+    cmp byte [es:bp+L_WIN], 0
+    je %%done
+    mov byte [es:bp+L_WIN], 0
+    mov ax, es
+    mov ss, ax
+    mov sp, [cs:int1b_private_sp]
+%%done:
+%endmacro
+
 ; Let an already latched FDC interrupt be taken (and acknowledged by
 ; int13_fdd_irq) before a new command, so its IRR bit starts clear. In an
 ; ISR context the 8259 cannot deliver it; fd_wait_irq then also checks the
 ; FDC status.
 fd_flush_irq:
+    push ax
     push cx
-    sti
+    push es
+    pushf
+    FD_IRQ_WINDOW_OPEN
     mov cx, 200
 .pause:
     out CPU_RESET_WAIT, al
     loop .pause
+    FD_IRQ_WINDOW_CLOSE
+    popf
     cli
+    pop es
     pop cx
+    pop ax
     ret
 
 ; AX = timestamp (3.26 us units, low 16 bits of port 5Ch).
@@ -326,6 +384,7 @@ fd_wait_irq:
     push dx
     push si
     push di
+    push es
     call fd_irq_bit
     mov dl, ah
     mov di, DISK_INTL              ; flag of the 1 MB interface's interrupt
@@ -345,12 +404,12 @@ fd_wait_irq:
     mov si, 16                     ; 16 windows of ~200 ms
     call fd_now
     mov bx, ax
-    sti
+    FD_IRQ_WINDOW_OPEN
 .poll:
-    cmp byte [bp+L_DMA], 0
+    cmp byte [es:bp+L_DMA], 0
     je .irr
     in al, 11h
-    mov cl, [bp+L_CHAN]
+    mov cl, [es:bp+L_CHAN]
     mov ah, 1
     shl ah, cl
     test al, ah
@@ -358,7 +417,7 @@ fd_wait_irq:
     mov al, cl
     or al, 04h
     out 15h, al                    ; TC: stop the channel
-    mov byte [bp+L_DMA], 2         ; 2: stopped at terminal count
+    mov byte [es:bp+L_DMA], 2      ; 2: stopped at terminal count
 .irr:
     push ds
     xor ax, ax
@@ -377,10 +436,10 @@ fd_wait_irq:
 .irq:
     ; A data command must also be in its result phase (RQM, DIO, CB);
     ; seeks have no result phase.
-    cmp byte [bp+L_SEEK], 0
+    cmp byte [es:bp+L_SEEK], 0
     jne .ok
     push dx
-    mov dx, [bp+L_BASE]
+    mov dx, [es:bp+L_BASE]
     in al, dx
     pop dx
     and al, 0D0h
@@ -397,7 +456,7 @@ fd_wait_irq:
     test [di], dh
     pop ds
     jz .time
-    mov byte [bp+L_WA], 1
+    mov byte [es:bp+L_WA], 1
     jmp .ok
 .time:
     call fd_now
@@ -408,13 +467,14 @@ fd_wait_irq:
     mov bx, ax
     dec si
     jnz .poll
-    cli
-    stc
-    jmp .done
+    mov bl, 1                      ; timeout
+    jmp .close
 .ok:
-    cli
-    clc
-.done:
+    xor bl, bl
+.close:
+    FD_IRQ_WINDOW_CLOSE
+    pop es
+    shr bl, 1                      ; CF = timeout
     pop di
     pop si
     pop dx

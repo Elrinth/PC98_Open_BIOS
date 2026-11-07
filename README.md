@@ -6,6 +6,22 @@ z486 CPU, 64 MB RAM, GRCG/PEGC). It replaces NEC's copyrighted `boot.rom`
 code and knows about the core's 486 and extended memory from the start: no
 V30 flag, 0401h/0594h filled in by POST, PC-9821 identification.
 
+**Release [2026-11-07](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-07):**
+Five Gals Connection, an N88-BASIC(86) disk game, now runs on the built-in
+BASIC. BASIC kept four 256-byte file buffers below CLEAR's memory limit. NEC's
+BASIC keeps as many as the disk asks for, and the disk module returns that
+count (byte 1 of the ID sector) from its drive initialisation. With
+`CLEAR ,&H3000` and a 5001-element array the three extra buffers left the game
+out of memory, so it looped on a black screen after its text title. Hokuto no
+Ken asks for 0 files, Five Gals 1, The Black Onyx 2 and Asteka 3. File numbers
+above the count now give Bad file number, as on NEC. `ERASE` now removes
+arrays and moves later arrays down; the game erases and re-dimensions three
+arrays every round, and fell back to its title without it.
+`PUT @(x,y),KANJI(code)` draws a glyph with optional mode and colours (the
+game's GAME OVER and stage texts). `PLAY` is still not supported; the game skips
+it, so it has no music. [`tests/test_basic.py`](tests/test_basic.py) covers
+`ERASE`, `PUT @ KANJI` and the game when its image is available.
+
 **Release [2026-11-05](https://github.com/Elrinth/PC98_Open_BIOS/releases/tag/2026-11-05):**
 Interrupts that arrive while the disk BIOS waits for the floppy controller now
 run on the program's own stack, as under NEC's BIOS, which never leaves it.

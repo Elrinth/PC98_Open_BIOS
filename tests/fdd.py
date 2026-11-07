@@ -35,6 +35,8 @@ class DiskImage:
             self._fdi(raw)
         elif ext in ('.hdm', '.tfd', '.xdf', '.dup', '.2hd'):
             self._raw(raw, 1024, 8, 2, 77)
+        elif ext == '.nfd':
+            self._nfd(raw)
         else:
             raise ValueError(f'unsupported image {path}')
 
@@ -56,6 +58,29 @@ class DiskImage:
                                       fm=density == 0x40, deleted=deleted != 0, status=status))
                 pos += 16 + size
             self.tracks[(index // 2, index % 2)] = sectors
+
+    def _nfd(self, raw):
+        """T98-Next NFD revision 0: 163 tracks x 26 sector entries of 16 bytes
+        (C, H, R, N, MFM, deleted, status, ST0-ST2, PDA) at 120h, data after
+        the header in entry order."""
+        if raw[:15] != b'T98FDDIMAGE.R0\0':
+            raise ValueError(f'only NFD revision 0 is supported: {self.path}')
+        pos = struct.unpack_from('<I', raw, 0x110)[0]
+        self.write_protected = raw[0x114] != 0
+        for track in range(163):
+            sectors = []
+            for i in range(26):
+                e = 0x120 + (track * 26 + i) * 16
+                c, h, r, n, mfm, deleted, status = raw[e:e + 7]
+                if c == 0xFF:
+                    continue
+                self.media = '2DD' if raw[e + 10] == 0x10 else '2HD'
+                size = 128 << n
+                sectors.append(Sector(c, h, r, n, raw[pos:pos + size], fm=not mfm,
+                                      deleted=deleted != 0, status=status))
+                pos += size
+            if sectors:
+                self.tracks[(track // 2, track % 2)] = sectors
 
     def _fdi(self, raw):
         _, fddtype, header, secsize, sectors, heads, cyls = struct.unpack_from('<7I', raw, 0)

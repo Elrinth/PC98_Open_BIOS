@@ -100,6 +100,33 @@ def test_direct():
     check('tokeniser matches NEC', body == nec, body.hex(' '))
 
 
+def test_erase():
+    m = basic_direct()
+    program = [
+        '10 dim a%(10),b%(20),c%(5):b%(3)=7:c%(5)=9',
+        '20 erase a%:print b%(3);c%(5);',
+        '30 dim a%(30):a%(30)=4:print a%(30);b%(3);c%(5);',
+        '40 erase b%,c%:dim b%(2):b%(2)=3:print b%(2);a%(30)',
+        '50 clear ,&h3000:dim x%(3000):for i=1 to 40:erase x%:dim x%(3000):next:print "freed"',
+        'run',
+    ]
+    for line in program:
+        type_text(m, line + '\n')
+    m.run(seconds=1)
+    screen = m.text_screen()
+    check('ERASE keeps the other arrays', ' 7  9  4  7  9  3  4' in screen, screen)
+    check('ERASE gives the memory back', 'freed' in screen, screen)
+
+
+def test_put_kanji():
+    m = basic_direct()
+    type_text(m, 'cls 3:put @(16,8),kanji(&h3021),pset,0,7\n')
+    counts = [sum(bin(b).count('1') for b in p) for p in m.planes()[:3]]
+    # white 16x16 box with the glyph in black: the same pattern in every plane
+    check('PUT @ KANJI draws a glyph on its background', 0 < counts[0] < 256 and len(set(counts)) == 1,
+          counts)
+
+
 def test_memory_and_calendar():
     import datetime
     m = basic_direct()
@@ -198,12 +225,41 @@ def test_hokuto():
         check('Hokuto no Ken: prologue runs', line not in (1125, 1130, 0xFFFF), line)
 
 
+def test_five_gals():
+    image = next(ROMS.glob('*/Five Gals Connection.nfd'), ROMS / 'Five Gals Connection.nfd')
+    if not image.exists():
+        print('SKIP Five Gals Connection (image not available)')
+        return
+    m = PC98(ROOT / 'build/boot.rom')
+    m.mount(0, image)
+    m.run(seconds=4)
+    title = list(range(1000, 1100)) + list(range(9000, 9300))
+    line = word(m, 0x600 + 0x6E4)
+    drawn = [sum(1 for b in p if b) for p in m.planes()]
+    # CLEAR ,&H3000 and DIM GRA(5000): fits with the disk's one file buffer
+    check('Five Gals Connection: title drawn, waiting for a key', line in title and drawn[0] > 5000,
+          (line, drawn))
+    m.type_keys([0x1C, 0x9C])
+    m.run(seconds=6)
+    line = word(m, 0x600 + 0x6E4)
+    check('Five Gals Connection: the round starts (ERASE)', line not in title and line < 50000, line)
+    for _ in range(20):                 # no input: the player loses three lives
+        if word(m, 0x600 + 0x6E4) in (2680, 2690):
+            break
+        m.run(seconds=1)
+    right = sum(bin(b).count('1') for row in range(400) for b in m.planes()[0][row * 80 + 40:row * 80 + 80])
+    check('Five Gals Connection: GAME OVER drawn with PUT @ KANJI', right > 2000, right)
+
+
 if __name__ == '__main__':
     test_direct()
+    test_erase()
+    test_put_kanji()
     test_memory_and_calendar()
     test_get_graphics()
     test_call_arguments()
     test_disk_character_encoding()
     test_compound_comparisons()
     test_hokuto()
+    test_five_gals()
     sys.exit(1 if failures else 0)

@@ -481,6 +481,7 @@ g_array_room:
     jmp .next
 
 ; PUT @[STEP](x,y),array[,PSET|PRESET|OR|AND|XOR]
+; PUT @[STEP](x,y),KANJI(code)[,[PSET|PRESET|OR|AND|XOR][,foreground[,background]]]
 stmt_put_at:
     inc si                          ; '@'
     call g_coord
@@ -488,6 +489,9 @@ stmt_put_at:
     mov [G_PB+2], dx
     mov ah, ','
     call b_expect
+    call b_skipsp
+    cmp al, T_KANJI
+    je g_put_kanji
     call g_array
     mov [G_PB+4], bx
     mov ax, [B_VSEG]
@@ -497,23 +501,7 @@ stmt_put_at:
     call g_comma
     jz .go
     call b_skipsp
-    inc si
-    mov bl, 0
-    cmp al, T_PSET
-    je .m
-    inc bl
-    cmp al, T_PRESET
-    je .m
-    inc bl
-    cmp al, T_OR
-    je .m
-    inc bl
-    cmp al, T_AND
-    je .m
-    inc bl
-    cmp al, T_XOR
-    jne err_syntax
-.m:
+    call g_mode
     mov [G_PB+10], bl
     call g_comma
     jnz err_feature
@@ -522,6 +510,62 @@ stmt_put_at:
     int 0ACh                        ; LIO GPUT1
     call g_status
     jmp stmt_end
+
+; KANJI(code): a JIS kanji (or ANK below 100h) from the character generator,
+; PSET unless a mode is given; colours of COLOR unless given.
+g_put_kanji:
+    inc si
+    mov ah, '('
+    call b_expect
+    call b_eval_int
+    mov [G_PB+4], ax
+    mov ah, ')'
+    call b_expect
+    mov word [G_PB+6], 0            ; PSET, colour switch off
+    call g_comma
+    jz .go
+    call b_skipsp
+    cmp al, ','                     ; mode left out
+    je .fg
+    call g_mode
+    mov [G_PB+6], bl
+.fg:
+    call g_comma
+    jz .go
+    call b_eval_int
+    mov [G_PB+8], al                ; foreground
+    mov byte [G_PB+9], 0            ; background
+    mov byte [G_PB+7], 1            ; colour switch: these colours
+    call g_comma
+    jz .go
+    call b_eval_int
+    mov [G_PB+9], al
+.go:
+    mov bx, G_PB
+    int 0ADh                        ; LIO GPUT2
+    call g_status
+    jmp stmt_end
+
+; Mode token AL at SI -> BL = 0 PSET, 1 PRESET, 2 OR, 3 AND, 4 XOR; SI after it.
+g_mode:
+    inc si
+    mov bl, 0
+    cmp al, T_PSET
+    je .r
+    inc bl
+    cmp al, T_PRESET
+    je .r
+    inc bl
+    cmp al, T_OR
+    je .r
+    inc bl
+    cmp al, T_AND
+    je .r
+    inc bl
+    cmp al, T_XOR
+    jne err_syntax
+.r:
+    ret
 
 ; COLOR @(x1,y1)-(x2,y2),colour: text attributes of a rectangle.
 stmt_color_at:

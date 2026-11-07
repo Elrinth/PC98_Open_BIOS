@@ -79,6 +79,7 @@ B_ARYEND        equ W+0F8h      ; arrays from B_VAREND to here
 B_ONERR         equ W+0FAh      ; ON ERROR GOTO: line header, 0 = none
 B_ERRNO         equ W+0FCh      ; ERR
 B_INERR         equ W+0FDh      ; 1 while an error handler runs
+B_NFILES        equ W+0FEh      ; files #1..n (the disk's ID sector), n <= FS_NFILES
 B_ERRLINE       equ W+100h      ; ERL
 B_ERRHDR        equ W+102h      ; RESUME: line header of the failed statement
 B_ERRSTMT       equ W+104h      ; RESUME: start of the failed statement

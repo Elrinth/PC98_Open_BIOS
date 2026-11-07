@@ -83,6 +83,7 @@ b_init:
     mov word [KBUFPTR], KBUF
     mov word [B_VSEG], 1000h        ; without a disk module
     mov word [B_STRTOP], STR_TOP_DEFAULT
+    mov byte [B_NFILES], FS_NFILES
     call b_set_fbuf
     call fs_init
     call b_set_vseg
@@ -137,11 +138,15 @@ b_init:
     ret
 
 ; File buffers just below the string top, 256-byte aligned (no DMA
-; boundary inside one: VSEG is a multiple of 10h).
+; boundary inside one: VSEG is a multiple of 10h). They take memory below
+; CLEAR's limit, so only as many as the disk asks for.
 b_set_fbuf:
     mov ax, [B_STRTOP]
-    sub ax, FS_NFILES*256
+    cmp byte [B_NFILES], 0
+    je .set
+    sub ah, [B_NFILES]              ; 256 bytes per file
     xor al, al
+.set:
     mov [B_FBUF], ax
     ret
 
@@ -224,8 +229,14 @@ b_disk_init:
     mov si, 0C36h
     mov di, 2Dh
     mov bp, BSEG
-    int 0C6h                        ; 2Dh: drive initialisation
-    call b_ds_es
+    int 0C6h                        ; 2Dh: drive initialisation, AL = files
+    call b_ds_es                    ; (byte 1 of the disk's ID sector)
+    cmp al, FS_NFILES
+    jbe .files
+    mov al, FS_NFILES
+.files:
+    mov [B_NFILES], al
+    call b_set_fbuf
     mov bp, [TXTTAB]
     int 0B4h                        ; module start-up: BP = new text start
     call b_ds_es

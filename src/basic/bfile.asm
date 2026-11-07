@@ -15,9 +15,10 @@
 ;   byte rotated right by one bit), 01h binary (BSAVE: dw start, dw end,
 ;   data), 00h data / ASCII text; 10h write-protected.
 ;
-; Files #1-#4: a control block in BSEG and a 256-byte buffer in VSEG (so a
-; FIELD variable's descriptor can point into it), just below B_STRTOP. A
-; random-access record is one 256-byte sector of the file.
+; Files #1-#n (n = the disk's file count, at most 4): a control block in BSEG
+; and a 256-byte buffer in VSEG (so a FIELD variable's descriptor can point
+; into it), just below B_STRTOP. A random-access record is one 256-byte
+; sector of the file.
 
 FS_FAT          equ 0D00h           ; 256: FAT of unit [FS_FATU]
 FS_SEC          equ 0E00h           ; 256: sector buffer
@@ -766,7 +767,7 @@ stmt_bload:
     jmp stmt_end
 
 ; ---------------------------------------------------------------- files
-; '#'? integer -> BX = control block of file 1..4 (CF clear), else error.
+; '#'? integer -> BX = control block of file 1..[B_NFILES] (CF clear), else error.
 fs_filenum:
     call b_skipsp
     cmp al, '#'
@@ -776,7 +777,8 @@ fs_filenum:
     call b_eval_int
 fs_fcb_ax:
     dec ax
-    cmp ax, FS_NFILES
+    movzx bx, byte [B_NFILES]
+    cmp ax, bx
     jae .bad
     imul bx, ax, FCB_SIZE
     add bx, FS_FCB

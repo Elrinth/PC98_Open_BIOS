@@ -197,7 +197,7 @@ stmt_table:
     ST stmt_def         ; 98 DEF
     ST stmt_eol         ; 99 ELSE: end of a THEN branch
     ST stmt_end_tok     ; 9A END
-    ST err_feature      ; 9B ERASE
+    ST stmt_erase       ; 9B ERASE
     ST err_feature      ; 9C EDIT
     ST stmt_error       ; 9D ERROR
     ST stmt_for         ; 9E FOR

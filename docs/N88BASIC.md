@@ -33,7 +33,12 @@ BASIC installs those vectors with the block's segment (for the module on
 Hokuto no Ken: B0h, B4h at 1000h; C6h, C7h at 1200h; D0h at 1400h) and then
 calls the module, with the registers NEC's BASIC uses:
 
-1. INT C6h, DI = 2Dh (AX = 0, BX = 1): drive initialisation.
+1. INT C6h, DI = 2Dh (AX = 0, BX = 1): drive initialisation. Returns AL =
+   the number of files (byte 1 of the disk's ID sector: 0 on Hokuto no Ken,
+   1 Five Gals Connection, 2 The Black Onyx, 3 Asteka). BASIC keeps that many
+   256-byte file buffers below CLEAR's memory limit (at most 4) and refuses
+   higher file numbers; a fixed 4 left Five Gals Connection (CLEAR ,&H3000
+   and a 5001-element array) out of memory.
 2. INT B4h, BP = text start (1D00h): module start-up; returns BP = new text
    start (the module keeps its buffers below it), stored at 0060:06A4h.
 3. INT C6h, DI = 34h, when the word at 1200:0002 is FFFFh.

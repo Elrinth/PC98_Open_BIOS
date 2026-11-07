@@ -752,4 +752,78 @@ stmt_dim:
     mov al, 10                      ; Duplicate Definition
     jmp b_error
 
-; ERASE: not needed by the programs measured; arrays go with CLEAR/RUN.
+; ERASE name[, name ...]: the arrays go; the data of later arrays moves down
+; over theirs (Five Gals Connection erases and re-DIMs three arrays for every
+; round).
+stmt_erase:
+    call b_skipsp
+    call b_parse_name               ; DX, CX, AH; SI after the name
+    call b_find_array
+    jc err_func
+    call b_erase_bx
+    call b_skipsp
+    cmp al, ','
+    jne stmt_end
+    inc si
+    jmp stmt_erase
+
+; Remove the array whose header is at VSEG:BX.
+b_erase_bx:
+    pusha
+    push es
+    push ds
+    mov es, [B_VSEG]
+    movzx si, byte [es:bx+1]
+    lea si, [bx+si+2]               ; -> entry size
+    mov bp, [es:si]                 ; header bytes
+    movzx di, byte [es:si+2]
+    shl di, 1
+    add di, si                      ; [di+3] data offset, [di+5] data bytes
+    mov dx, [es:di+3]               ; data offset from B_ADATA
+    mov ax, [es:di+5]
+    add ax, 15
+    and al, 0F0h                    ; its paragraph-aligned block
+    ; arrays DIMmed later have higher data offsets: they move down by AX
+    mov di, [B_VAREND]
+.fix:
+    cmp di, [B_ARYEND]
+    jae .data
+    movzx si, byte [es:di+1]
+    add si, di
+    add si, 2                       ; -> entry size
+    push si
+    movzx cx, byte [es:si+2]
+    shl cx, 1
+    add si, cx
+    cmp [es:si+3], dx
+    jbe .nofix
+    sub [es:si+3], ax
+.nofix:
+    pop si
+    add di, [es:si]
+    jmp .fix
+.data:
+    mov di, [B_ADATA]
+    add di, dx                      ; the block
+    mov si, di
+    add si, ax                      ; the data after it
+    mov cx, [B_ADEND]
+    sub cx, si
+    sub [B_ADEND], ax
+    mov ds, [ss:B_VSEG]
+    rep movsb
+    push ss
+    pop ds
+    ; the headers after it move down over this one
+    mov di, bx
+    mov si, bx
+    add si, bp
+    mov cx, [B_ARYEND]
+    sub cx, si
+    sub [B_ARYEND], bp
+    mov ds, [ss:B_VSEG]
+    rep movsb
+    pop ds
+    pop es
+    popa
+    ret
